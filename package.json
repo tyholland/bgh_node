@@ -35,7 +35,8 @@
   },
   "eslintConfig": {
     "extends": [
-      "prettier"
+      "prettier",
+      "plugin:react/recommended"
     ]
   },
   "lint-staged": {
