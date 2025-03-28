@@ -1,6 +1,6 @@
 import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
-import { routes } from "../src/routes/routes";
+import { routes } from "./routes/routes";
 import { auth } from "express-oauth2-jwt-bearer";
 import cors from "cors";
 
