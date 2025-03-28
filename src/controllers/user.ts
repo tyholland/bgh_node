@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import client from "../utils/postgres";
 import { Budget, User } from "../utils/types";
+import { ManagementClient } from "auth0";
 
 const checkForExistingUser = async (auth_id: string | undefined) => {
   const user = await client.query<User>(
@@ -69,7 +70,23 @@ export const deleteUser = (req: Request, res: Response) => {
       "UPDATE users SET active = $1, modified_at = $2 WHERE auth_id = $3";
     const values = [false, currentDate, auth_id];
 
-    // Add code to delete user from auth0
+    try {
+      const management = new ManagementClient({
+        clientId: `${process.env.AUTH0_CLIENT_ID}`,
+        clientSecret: `${process.env.AUTH0_CLIENT_SECRET}`,
+        domain: `${process.env.AUTH0_DOMAIN}`,
+        audience: process.env.AUTH0_AUDIENCE,
+      });
+
+      await management.users.delete({
+        id: `${auth_id}`,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Failed to delete auth0 user",
+      });
+    }
 
     try {
       await client.query(update, values);

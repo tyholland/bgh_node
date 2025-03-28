@@ -13,8 +13,8 @@ app.use(cors());
 app.use(express.json());
 app.use(
   auth({
-    audience: process.env.AUDIENCE,
-    issuerBaseURL: process.env.BASE_URL,
+    audience: process.env.AUTH0_AUDIENCE,
+    issuerBaseURL: process.env.AUTH0_BASE_URL,
   }),
 );
 

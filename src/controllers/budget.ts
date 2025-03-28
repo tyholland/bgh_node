@@ -154,7 +154,7 @@ export const addBudgetItem = (req: Request, res: Response) => {
     } catch (err) {
       return res.status(500).json({
         err,
-        action: "Update budget item",
+        action: "Add budget item",
       });
     }
   })();
