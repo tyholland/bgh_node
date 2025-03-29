@@ -199,7 +199,7 @@ export const getBudget = (req: Request, res: Response) => {
           budgetIncome.rows.forEach((response: Budget) => {
             income.push({
               label: response.label,
-              value: response.amount,
+              value: Number(response.amount),
               paid: response.paid,
               budget_id: response.id,
               budget_date_id: response.budget_date_id,
@@ -209,7 +209,7 @@ export const getBudget = (req: Request, res: Response) => {
           budgetExpense.rows.forEach((response: Budget) => {
             expense.push({
               label: response.label,
-              value: response.amount,
+              value: Number(response.amount),
               paid: response.paid,
               budget_id: response.id,
               budget_date_id: response.budget_date_id,
