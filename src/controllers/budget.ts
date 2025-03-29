@@ -21,7 +21,11 @@ const getUserId = async (auth_id: string | undefined) => {
 };
 
 const sortBudget = (a: BudgetItem, b: BudgetItem) => {
-  return a.label > b.label ? 1 : a.label < b.label ? -1 : 0;
+  return a.label.toLowerCase() > b.label.toLowerCase()
+    ? 1
+    : a.label.toLowerCase() < b.label.toLowerCase()
+      ? -1
+      : 0;
 };
 
 export const createBudget = (req: Request, res: Response) => {
