@@ -6,7 +6,7 @@ const clientFields: ClientConfig = {
   host: process.env.DB_HOST,
   port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
   database: process.env.DB,
-  ssl: true,
+  ssl: process.env.DB_SSL ? process.env.DB_SSL === "true" : false,
 };
 
 const client = new Client(clientFields);
