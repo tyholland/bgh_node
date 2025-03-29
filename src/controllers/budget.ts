@@ -20,6 +20,10 @@ const getUserId = async (auth_id: string | undefined) => {
   return user.rows[0].id;
 };
 
+const sortBudget = (a: BudgetItem, b: BudgetItem) => {
+  return a.label > b.label ? 1 : a.label < b.label ? -1 : 0;
+};
+
 export const createBudget = (req: Request, res: Response) => {
   (async () => {
     const { budgetData } = req.body;
@@ -219,8 +223,8 @@ export const getBudget = (req: Request, res: Response) => {
           fullBudget.push({
             year: year,
             month: month,
-            income,
-            expense,
+            income: income.sort(sortBudget),
+            expense: expense.sort(sortBudget),
           });
         } catch (err) {
           return res.status(500).json({
