@@ -50,6 +50,7 @@ export interface User {
   id: number;
   auth_id: string;
   email: string;
+  subscription_id: number;
 }
 
 export interface BudgetInsertIds {

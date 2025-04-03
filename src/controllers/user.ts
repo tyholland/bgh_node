@@ -12,6 +12,8 @@ const checkForExistingUser = async (auth_id: string | undefined) => {
   return {
     exists: user.rowCount ? user.rowCount > 0 : false,
     id: user.rows.length > 0 ? user.rows[0].id : undefined,
+    subscription_id:
+      user.rows.length > 0 ? user.rows[0].subscription_id : undefined,
   };
 };
 
@@ -21,8 +23,8 @@ export const createUser = (req: Request, res: Response) => {
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
     const insert =
-      "INSERT into users(auth_id, email, active, modified_at) VALUES ($1, $2, $3, $4)";
-    const values = [auth_id, email, true, currentDate];
+      "INSERT into users(auth_id, email, active, modified_at, subscription_id) VALUES ($1, $2, $3, $4, $5)";
+    const values = [auth_id, email, true, currentDate, 2];
     let user;
 
     try {
@@ -37,6 +39,7 @@ export const createUser = (req: Request, res: Response) => {
         return res.status(206).json({
           action: "User already exists",
           hasBudget: budgetInfo.rowCount ? budgetInfo.rowCount > 0 : false,
+          subscription_id: user.subscription_id,
         });
       }
     } catch (err) {
@@ -52,6 +55,7 @@ export const createUser = (req: Request, res: Response) => {
       return res.status(200).json({
         success: true,
         hasBudget: false,
+        subscription_id: 2,
       });
     } catch (err) {
       return res.status(500).json({
