@@ -32,19 +32,22 @@ export const checkConnectAccountExists = async (
   user_id: number | undefined,
   client: Client,
 ) => {
+  let user: QueryResult<User> | undefined = undefined;
   const connected_user = await client.query<ConnectedAccount>(
     "SELECT * FROM connected_accounts WHERE allowed_account = $1 AND is_connected = $2",
     [user_id, null],
   );
 
-  const user = await client.query<User>("SELECT * FROM users WHERE id = $1", [
-    connected_user.rows[0].main_account,
-  ]);
+  if (connected_user.rowCount) {
+    user = await client.query<User>("SELECT * FROM users WHERE id = $1", [
+      connected_user.rows[0].main_account,
+    ]);
+  }
 
   return {
     exists: connected_user.rowCount ? connected_user.rowCount > 0 : false,
     id: connected_user.rows.length > 0 ? connected_user.rows[0].id : undefined,
-    main_account: user.rows.length > 0 ? user.rows[0].email : undefined,
+    main_account: user?.rowCount ? user.rows[0].email : undefined,
   };
 };
 
