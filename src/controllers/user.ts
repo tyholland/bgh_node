@@ -8,6 +8,7 @@ import {
   getUserByEmail,
   getUserId,
 } from "../utils/functions";
+import { QueryResult } from "pg";
 
 export const createUser = (req: Request, res: Response) => {
   (async () => {
@@ -22,22 +23,31 @@ export const createUser = (req: Request, res: Response) => {
 
     try {
       user = await checkForExistingUser(auth_id, client);
+      let budgetInfo: QueryResult<Budget> | undefined = undefined;
 
       if (user.exists) {
-        const budgetInfo = await client.query<Budget>(
-          "SELECT * FROM budget WHERE user_id = $1",
-          [user.id],
-        );
-
         try {
           connectedAccount = await checkConnectAccountExists(user.id, client);
+          budgetInfo = await client.query<Budget>(
+            "SELECT * FROM budget WHERE user_id = $1",
+            [user.id],
+          );
         } catch (err) {
           console.error(err, "Failed to get Connected Account info");
+
+          try {
+            budgetInfo = await client.query<Budget>(
+              "SELECT * FROM budget WHERE user_id = $1",
+              [user.id],
+            );
+          } catch (err) {
+            console.error(err, "Failed to get Account budget info");
+          }
         }
 
         return res.status(206).json({
           action: "User already exists",
-          hasBudget: budgetInfo.rowCount ? budgetInfo.rowCount > 0 : false,
+          hasBudget: budgetInfo?.rowCount ? budgetInfo.rowCount > 0 : false,
           subscription_id: user.subscription_id,
           connected_message: connectedAccount?.exists,
           connected_id: connectedAccount?.id,
