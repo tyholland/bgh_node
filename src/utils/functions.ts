@@ -35,7 +35,7 @@ export const checkConnectAccountExists = async (
   let user: QueryResult<User> | undefined = undefined;
   const connected_user = await client.query<ConnectedAccount>(
     "SELECT * FROM connected_accounts WHERE allowed_account = $1 AND is_connected = $2",
-    [user_id, null],
+    [user_id, false],
   );
 
   if (connected_user.rowCount) {

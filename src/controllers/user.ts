@@ -143,8 +143,8 @@ export const shareAccount = (req: Request, res: Response) => {
     }
 
     const insert =
-      "INSERT into connected_accounts(main_account, allowed_account, modified_at) VALUES ($1, $2, $3)";
-    const values = [user_id, allowed_user.id, currentDate];
+      "INSERT into connected_accounts(main_account, allowed_account, is_connected, modified_at) VALUES ($1, $2, $3, $4)";
+    const values = [user_id, allowed_user.id, false, currentDate];
 
     try {
       await client.query(insert, values);
