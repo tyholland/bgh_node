@@ -30,7 +30,7 @@ export const createUser = (req: Request, res: Response) => {
           connectedAccount = await checkConnectAccountExists(user.id, client);
           budgetInfo = await client.query<Budget>(
             "SELECT * FROM budget WHERE user_id = $1",
-            [user.id],
+            [connectedAccount?.user_id],
           );
         } catch (err) {
           console.error(err, "Failed to get Connected Account info");

@@ -48,6 +48,7 @@ export const checkConnectAccountExists = async (
     exists: connected_user.rowCount ? connected_user.rowCount > 0 : false,
     id: connected_user.rows.length > 0 ? connected_user.rows[0].id : undefined,
     main_account: user?.rowCount ? user.rows[0].email : undefined,
+    user_id: user?.rowCount ? user.rows[0].id : undefined,
   };
 };
 
