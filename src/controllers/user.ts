@@ -52,6 +52,7 @@ export const createUser = (req: Request, res: Response) => {
           connected_message: connectedAccount?.exists,
           connected_id: connectedAccount?.id,
           primary_request: connectedAccount?.main_account,
+          is_connected: connectedAccount?.is_connected,
         });
       }
     } catch (err) {
@@ -69,6 +70,7 @@ export const createUser = (req: Request, res: Response) => {
         hasBudget: false,
         subscription_id: 2,
         connected_message: false,
+        is_connected: false,
       });
     } catch (err) {
       return res.status(500).json({

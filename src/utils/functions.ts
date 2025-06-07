@@ -33,32 +33,54 @@ export const checkConnectAccountExists = async (
   client: Client,
 ) => {
   let user: QueryResult<User> | undefined = undefined;
-  const connected_user = await client.query<ConnectedAccount>(
+  let active_connected_user: QueryResult<ConnectedAccount> | undefined =
+    undefined;
+
+  const non_active_connected_user = await client.query<ConnectedAccount>(
     "SELECT * FROM connected_accounts WHERE allowed_account = $1 AND is_connected = $2",
     [user_id, false],
   );
 
-  if (connected_user.rowCount) {
+  if (non_active_connected_user.rowCount) {
     user = await client.query<User>("SELECT * FROM users WHERE id = $1", [
-      connected_user.rows[0].main_account,
+      non_active_connected_user.rows[0].main_account,
     ]);
   }
 
-  if (!connected_user.rowCount) {
-    const active_connected_user = await client.query<ConnectedAccount>(
+  if (!non_active_connected_user.rowCount) {
+    active_connected_user = await client.query<ConnectedAccount>(
       "SELECT * FROM connected_accounts WHERE allowed_account = $1 AND is_connected = $2",
       [user_id, true],
     );
+
+    if (!active_connected_user.rowCount) {
+      return {
+        exists: false,
+        id: undefined,
+        main_account: undefined,
+        user_id: undefined,
+        is_connected: false,
+      };
+    }
+
     user = await client.query<User>("SELECT * FROM users WHERE id = $1", [
       active_connected_user.rows[0].main_account,
     ]);
   }
 
   return {
-    exists: connected_user.rowCount ? connected_user.rowCount > 0 : false,
-    id: connected_user.rows.length > 0 ? connected_user.rows[0].id : undefined,
+    exists: non_active_connected_user.rowCount
+      ? non_active_connected_user.rowCount > 0
+      : false,
+    id:
+      non_active_connected_user.rows.length > 0
+        ? non_active_connected_user.rows[0].id
+        : undefined,
     main_account: user?.rowCount ? user.rows[0].email : undefined,
     user_id: user?.rowCount ? user.rows[0].id : undefined,
+    is_connected: active_connected_user?.rowCount
+      ? active_connected_user.rowCount > 0
+      : false,
   };
 };
 
