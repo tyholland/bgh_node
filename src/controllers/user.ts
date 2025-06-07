@@ -49,10 +49,10 @@ export const createUser = (req: Request, res: Response) => {
           action: "User already exists",
           hasBudget: budgetInfo?.rowCount ? budgetInfo.rowCount > 0 : false,
           subscription_id: user.subscription_id,
-          connected_message: connectedAccount?.exists,
+          connected_message: connectedAccount?.exists || false,
           connected_id: connectedAccount?.id,
           primary_request: connectedAccount?.main_account,
-          is_connected: connectedAccount?.is_connected,
+          is_connected: connectedAccount?.is_connected || false,
         });
       }
     } catch (err) {
