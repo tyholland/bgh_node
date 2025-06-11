@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import client from "../utils/postgres";
+import { instance } from "../utils/postgres";
 import { Budget, User } from "../utils/types";
 import { ManagementClient } from "auth0";
 import {
@@ -12,6 +12,7 @@ import { QueryResult } from "pg";
 
 export const createUser = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const { email } = req.body;
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
@@ -83,6 +84,7 @@ export const createUser = (req: Request, res: Response) => {
 
 export const deleteUser = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
     const update =
@@ -124,6 +126,7 @@ export const deleteUser = (req: Request, res: Response) => {
 
 export const shareAccount = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const { email } = req.body;
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
@@ -175,6 +178,7 @@ export const shareAccount = (req: Request, res: Response) => {
 
 export const connectedAccountDecision = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const { decision, connected_id } = req.body;
     const currentDate = new Date(Date.now()).toISOString();
     const update =

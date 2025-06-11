@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { listOfMonths } from "../utils/constants";
-import client from "../utils/postgres";
+import { instance } from "../utils/postgres";
 import {
   AddedBudgetItem,
   Budget,
@@ -19,6 +19,7 @@ import {
 
 export const createBudget = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const { budgetData } = req.body;
     const auth_id = req.auth?.payload.sub;
     const count = listOfMonths.length - 1;
@@ -106,6 +107,7 @@ export const createBudget = (req: Request, res: Response) => {
 
 export const updateBudgetItem = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const responseBody: BudgetItem = req.body;
     const update =
       "UPDATE budget SET label = $1, amount = $2, paid = $3, modified_at = $4, frequency = $5 WHERE id = $6";
@@ -156,6 +158,7 @@ export const updateBudgetItem = (req: Request, res: Response) => {
 
 export const addBudgetItem = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const responseBody: AddedBudgetItem = req.body;
     const auth_id = req.auth?.payload.sub;
     let user_id: number | undefined;
@@ -200,6 +203,7 @@ export const addBudgetItem = (req: Request, res: Response) => {
 
 export const getBudget = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const auth_id = req.auth?.payload.sub;
     let user_id: number | undefined;
 
@@ -289,6 +293,7 @@ export const getBudget = (req: Request, res: Response) => {
 
 export const deleteBudgetItem = (req: Request, res: Response) => {
   (async () => {
+    const client = instance();
     const { budget_id } = req.body;
 
     try {
