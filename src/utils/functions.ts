@@ -138,7 +138,9 @@ export const updateBasedOnCadence = async (
       startingMonth = 0;
     }
 
-    for (let i = startingMonth; i <= 11; i++) {
+    const loopLength = 11 - startingMonth + budget_date_id;
+
+    for (let i = budget_date_id; i <= loopLength; i++) {
       const values = [
         label,
         value,
@@ -213,7 +215,9 @@ export const insertBasedOnCadence = async (
       startingMonth = 0;
     }
 
-    for (let i = startingMonth; i <= 11; i++) {
+    const loopLength = 11 - startingMonth + budget_date_id;
+
+    for (let i = budget_date_id; i <= loopLength; i++) {
       const values = [
         type,
         label,
