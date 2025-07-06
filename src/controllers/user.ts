@@ -21,6 +21,7 @@ export const createUser = (req: Request, res: Response) => {
     const values = [auth_id, email, true, currentDate, 2];
     let user;
     let connectedAccount;
+    let category;
 
     try {
       user = await checkForExistingUser(auth_id, client);
@@ -33,12 +34,20 @@ export const createUser = (req: Request, res: Response) => {
             "SELECT * FROM budget WHERE user_id = $1",
             [connectedAccount?.user_id],
           );
+          category = await client.query(
+            "SELECT * FROM category WHERE user_id = $1",
+            [connectedAccount?.user_id],
+          );
         } catch (err) {
           console.error(err, "Failed to get Connected Account info");
 
           try {
             budgetInfo = await client.query<Budget>(
               "SELECT * FROM budget WHERE user_id = $1",
+              [user.id],
+            );
+            category = await client.query(
+              "SELECT * FROM category WHERE user_id = $1",
               [user.id],
             );
           } catch (err) {
@@ -53,7 +62,9 @@ export const createUser = (req: Request, res: Response) => {
           connected_message: connectedAccount?.exists || false,
           connected_id: connectedAccount?.id,
           primary_request: connectedAccount?.main_account,
+          shared_account_email: connectedAccount?.second_account,
           is_connected: connectedAccount?.is_connected || false,
+          categories: category?.rowCount ? category?.rows : [],
         });
       }
     } catch (err) {
@@ -195,6 +206,41 @@ export const connectedAccountDecision = (req: Request, res: Response) => {
       return res.status(500).json({
         err,
         action: "Update values for an connected account",
+      });
+    }
+  })();
+};
+
+export const removeSharedAccount = (req: Request, res: Response) => {
+  (async () => {
+    const client = instance();
+    const auth_id = req.auth?.payload.sub;
+    const currentDate = new Date(Date.now()).toISOString();
+    let user_id;
+
+    try {
+      user_id = await getUserId(auth_id, client);
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Get user_id",
+      });
+    }
+
+    const update =
+      "UPDATE connected_accounts SET is_connected = $1, modified_at = $2 WHERE allowed_account = $3 OR main_account = $4";
+    const values = [false, currentDate, user_id, user_id];
+
+    try {
+      await client.query(update, values);
+
+      return res.status(200).json({
+        success: true,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Update 'is_connected' for an connected account",
       });
     }
   })();

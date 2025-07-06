@@ -10,6 +10,7 @@ export interface Budget {
   budget_date_id: number;
   id: number;
   frequency: string;
+  category_id: number;
 }
 
 // Values we get from FE when creating a budget
@@ -33,6 +34,7 @@ export interface AddedBudgetItem {
   value: number;
   budget_date_id: number;
   cadence: string;
+  category?: string;
 }
 
 // Structure for the budget_date table
@@ -51,6 +53,8 @@ export interface BudgetItem {
   paid?: boolean;
   frequency?: string;
   cadence?: string;
+  category?: string;
+  category_id?: number;
 }
 
 // What we see back to the FE for a budget

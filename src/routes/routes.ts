@@ -3,6 +3,7 @@ import {
   connectedAccountDecision,
   createUser,
   deleteUser,
+  removeSharedAccount,
   shareAccount,
 } from "../controllers/user";
 import {
@@ -12,6 +13,7 @@ import {
   getBudget,
   updateBudgetItem,
 } from "../controllers/budget";
+import { addCategory, deleteCategory } from "../controllers/category";
 
 export const routes = (app: Express) => {
   // Create User
@@ -25,6 +27,9 @@ export const routes = (app: Express) => {
 
   // decide to share account
   app.post("/user/share/decide", connectedAccountDecision);
+
+  // remove share account access
+  app.put("/user/share/remove", removeSharedAccount);
 
   // Get Budget
   app.get("/budget", getBudget);
@@ -40,4 +45,10 @@ export const routes = (app: Express) => {
 
   // Delete Budget Item
   app.delete("/budget/remove", deleteBudgetItem);
+
+  // Create Category
+  app.post("/category/create", addCategory);
+
+  // Delete Category
+  app.put("/category/remove", deleteCategory);
 };

@@ -110,7 +110,7 @@ export const updateBudgetItem = (req: Request, res: Response) => {
     const client = instance();
     const responseBody: BudgetItem = req.body;
     const update =
-      "UPDATE budget SET label = $1, amount = $2, paid = $3, modified_at = $4, frequency = $5 WHERE id = $6";
+      "UPDATE budget SET label = $1, amount = $2, paid = $3, modified_at = $4, frequency = $5, category_id = $6 WHERE id = $7";
     let budgetInfo;
     let budgetData;
 
@@ -179,7 +179,7 @@ export const addBudgetItem = (req: Request, res: Response) => {
     }
 
     const insert =
-      "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id";
+      "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
 
     try {
       const budgetIds = await insertBasedOnCadence(
@@ -260,6 +260,7 @@ export const getBudget = (req: Request, res: Response) => {
               value: Number(response.amount),
               paid: response.paid,
               frequency: response.frequency,
+              category_id: response.category_id,
               budget_id: response.id,
               budget_date_id: response.budget_date_id,
             });
@@ -294,7 +295,23 @@ export const getBudget = (req: Request, res: Response) => {
 export const deleteBudgetItem = (req: Request, res: Response) => {
   (async () => {
     const client = instance();
+    const auth_id = req.auth?.payload.sub;
     const { budget_id } = req.body;
+
+    try {
+      const user_id = await getUserId(auth_id, client);
+
+      if (!user_id) {
+        return res.status(500).json({
+          action: "User doesn't exist",
+        });
+      }
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Get user_id",
+      });
+    }
 
     try {
       await client.query("DELETE FROM budget WHERE id = $1", [budget_id]);
