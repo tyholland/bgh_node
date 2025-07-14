@@ -168,7 +168,7 @@ export const updateBasedOnCadence = async (
         paid,
         currentDate,
         frequency,
-        expenseCategory.rows[0].id,
+        expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
         budgetData.rows[i].id,
       ];
 
@@ -185,7 +185,7 @@ export const updateBasedOnCadence = async (
           paid,
           currentDate,
           frequency,
-          expenseCategory.rows[0].id,
+          expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
           budgetData.rows[i].id,
         ];
 
@@ -216,9 +216,11 @@ export const updateBasedOnCadence = async (
     paid,
     currentDate,
     frequency,
-    expenseCategory.rows[0].id,
+    expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
     budget_id,
   ];
+
+  console.log(values);
   await client.query(queryString, values);
 };
 
@@ -271,7 +273,7 @@ export const insertBasedOnCadence = async (
         i + 1,
         currentDate,
         frequency,
-        expenseCategory.rows[0].id,
+        expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
       ];
       const budgetId = await client.query(queryString, values);
       budgetArray.push(budgetId.rows[0].id);
@@ -295,7 +297,7 @@ export const insertBasedOnCadence = async (
             i + 1,
             currentDate,
             frequency,
-            expenseCategory.rows[0].id,
+            expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
           ];
           const budgetId = await client.query(queryString, values);
           budgetArray.push(budgetId.rows[0].id);
@@ -315,7 +317,7 @@ export const insertBasedOnCadence = async (
         i + 1,
         currentDate,
         frequency,
-        expenseCategory.rows[0].id,
+        expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
       ];
       const budgetId = await client.query(queryString, values);
       budgetArray.push(budgetId.rows[0].id);
