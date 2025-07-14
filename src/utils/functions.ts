@@ -137,12 +137,8 @@ export const updateBasedOnCadence = async (
     budget_date_id,
     frequency,
     cadence,
-    category,
+    category_id,
   } = responseBody;
-  const expenseCategory = await client.query(
-    "SELECT * FROM category WHERE label = $1",
-    [category],
-  );
   const currentDate = new Date(Date.now()).toISOString();
 
   if (cadence === "Future Months") {
@@ -168,8 +164,8 @@ export const updateBasedOnCadence = async (
         paid,
         currentDate,
         frequency,
-        expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
-        budgetData.rows[i].id,
+        category_id || null,
+        budgetData.rows[i]?.id,
       ];
 
       await client.query(queryString, values);
@@ -185,8 +181,8 @@ export const updateBasedOnCadence = async (
           paid,
           currentDate,
           frequency,
-          expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
-          budgetData.rows[i].id,
+          category_id || null,
+          budgetData.rows[i]?.id,
         ];
 
         if (i === 2 || i === 5 || i === 8 || i === 11) {
@@ -202,8 +198,8 @@ export const updateBasedOnCadence = async (
         paid,
         currentDate,
         frequency,
-        expenseCategory.rows[0].id,
-        budgetData.rows[i].id,
+        category_id || null,
+        budgetData.rows[i]?.id,
       ];
 
       await client.query(queryString, values);
@@ -216,11 +212,10 @@ export const updateBasedOnCadence = async (
     paid,
     currentDate,
     frequency,
-    expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
+    category_id || null,
     budget_id,
   ];
 
-  console.log(values);
   await client.query(queryString, values);
 };
 
@@ -238,12 +233,8 @@ export const insertBasedOnCadence = async (
     budget_date_id,
     frequency,
     cadence,
-    category,
+    category_id,
   } = responseBody;
-  const expenseCategory = await client.query(
-    "SELECT * FROM category WHERE label = $1",
-    [category],
-  );
   const currentDate = new Date(Date.now()).toISOString();
 
   if (cadence === "Future Months") {
@@ -273,10 +264,10 @@ export const insertBasedOnCadence = async (
         i + 1,
         currentDate,
         frequency,
-        expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
+        category_id || null,
       ];
       const budgetId = await client.query(queryString, values);
-      budgetArray.push(budgetId.rows[0].id);
+      budgetArray.push(budgetId.rows[0]?.id);
     }
 
     return budgetArray;
@@ -297,10 +288,10 @@ export const insertBasedOnCadence = async (
             i + 1,
             currentDate,
             frequency,
-            expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
+            category_id || null,
           ];
           const budgetId = await client.query(queryString, values);
-          budgetArray.push(budgetId.rows[0].id);
+          budgetArray.push(budgetId.rows[0]?.id);
         }
       }
 
@@ -317,10 +308,10 @@ export const insertBasedOnCadence = async (
         i + 1,
         currentDate,
         frequency,
-        expenseCategory.rowCount ? expenseCategory.rows[0].id : null,
+        category_id || null,
       ];
       const budgetId = await client.query(queryString, values);
-      budgetArray.push(budgetId.rows[0].id);
+      budgetArray.push(budgetId.rows[0]?.id);
     }
 
     return budgetArray;
@@ -335,10 +326,10 @@ export const insertBasedOnCadence = async (
     budget_date_id,
     currentDate,
     frequency,
-    expenseCategory.rows[0].id,
+    category_id || null,
   ];
   const budgetId = await client.query(queryString, values);
-  return budgetId.rows[0].id;
+  return budgetId.rows[0]?.id;
 };
 
 export const getUserByEmail = async (email: string, client: Client) => {

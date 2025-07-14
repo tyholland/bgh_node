@@ -34,7 +34,7 @@ export interface AddedBudgetItem {
   value: number;
   budget_date_id: number;
   cadence: string;
-  category?: string;
+  category_id?: number;
 }
 
 // Structure for the budget_date table
