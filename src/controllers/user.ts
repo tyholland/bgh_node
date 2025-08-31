@@ -13,12 +13,12 @@ import { QueryResult } from "pg";
 export const createUser = (req: Request, res: Response) => {
   (async () => {
     const client = instance();
-    const { email } = req.body;
+    const { email, plan } = req.body;
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
     const insert =
-      "INSERT into users(auth_id, email, active, modified_at, subscription_id) VALUES ($1, $2, $3, $4, $5)";
-    const values = [auth_id, email, true, currentDate, 2];
+      "INSERT into users(auth_id, email, active, modified_at, subscription_id, subscribed_at) VALUES ($1, $2, $3, $4, $5, $6)";
+    const values = [auth_id, email, true, currentDate, currentDate, plan];
     let user;
     let connectedAccount;
     let category;
@@ -65,6 +65,8 @@ export const createUser = (req: Request, res: Response) => {
           shared_account_email: connectedAccount?.second_account,
           is_connected: connectedAccount?.is_connected || false,
           categories: category?.rowCount ? category?.rows : [],
+          paid_sub: user.paid_sub,
+          subscribed_at: user.subscribed_at,
         });
       }
     } catch (err) {
@@ -103,6 +105,27 @@ export const deleteUser = (req: Request, res: Response) => {
     const values = [false, currentDate, auth_id];
 
     try {
+      const user = await checkForExistingUser(auth_id, client);
+
+      if (
+        user.exists &&
+        (user.subscription_id === 3 || user.subscription_id === 4)
+      ) {
+        return res.status(500).json({
+          success: false,
+          action:
+            "You need to cancel your subscription before deleting account",
+        });
+      }
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        success: false,
+        action: "Failed to get user_id and check subscription",
+      });
+    }
+
+    try {
       const management = new ManagementClient({
         clientId: `${process.env.AUTH0_CLIENT_ID}`,
         clientSecret: `${process.env.AUTH0_CLIENT_SECRET}`,
@@ -116,6 +139,7 @@ export const deleteUser = (req: Request, res: Response) => {
     } catch (err) {
       return res.status(500).json({
         err,
+        success: false,
         action: "Failed to delete auth0 user",
       });
     }
@@ -129,6 +153,7 @@ export const deleteUser = (req: Request, res: Response) => {
     } catch (err) {
       return res.status(500).json({
         err,
+        success: false,
         action: "Delete user",
       });
     }
@@ -241,6 +266,36 @@ export const removeSharedAccount = (req: Request, res: Response) => {
       return res.status(500).json({
         err,
         action: "Update 'is_connected' for an connected account",
+      });
+    }
+  })();
+};
+
+export const updateUserSub = (req: Request, res: Response) => {
+  (async () => {
+    const client = instance();
+    const { plan, paid } = req.body;
+    const auth_id = req.auth?.payload.sub;
+    const currentDate = new Date(Date.now()).toISOString();
+    const updateFree =
+      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3 WHERE auth_id = $4";
+    const valuesFree = [plan, paid, currentDate, auth_id];
+    const updatePaid =
+      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4 WHERE auth_id = $5";
+    const valuesPaid = [plan, paid, currentDate, currentDate, auth_id];
+    const update = paid ? updatePaid : updateFree;
+    const values = paid ? valuesPaid : valuesFree;
+
+    try {
+      await client.query(update, values);
+
+      return res.status(200).json({
+        success: true,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Update user sub",
       });
     }
   })();

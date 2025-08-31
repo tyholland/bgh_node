@@ -71,6 +71,8 @@ export interface User {
   email: string;
   subscription_id: number;
   active: boolean;
+  paid_sub: boolean;
+  subscribed_at: string;
 }
 
 export interface BudgetInsertIds {

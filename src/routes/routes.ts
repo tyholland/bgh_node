@@ -5,6 +5,7 @@ import {
   deleteUser,
   removeSharedAccount,
   shareAccount,
+  updateUserSub,
 } from "../controllers/user";
 import {
   addBudgetItem,
@@ -22,14 +23,17 @@ export const routes = (app: Express) => {
   // Delete User
   app.put("/user/remove", deleteUser);
 
-  // share account
+  // Share account
   app.post("/user/share", shareAccount);
 
-  // decide to share account
+  // Decide to share account
   app.post("/user/share/decide", connectedAccountDecision);
 
-  // remove share account access
+  // Remove share account access
   app.put("/user/share/remove", removeSharedAccount);
+
+  // Update user subscription
+  app.put("/user/update/sub", updateUserSub);
 
   // Get Budget
   app.get("/budget", getBudget);

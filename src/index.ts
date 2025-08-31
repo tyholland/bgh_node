@@ -24,7 +24,7 @@ app.use(
 );
 
 app.get("/", (req: Request, res: Response) => {
-  res.send("Eazy Budgeting API");
+  res.send("Simple Budgeting API");
 });
 
 routes(app);
