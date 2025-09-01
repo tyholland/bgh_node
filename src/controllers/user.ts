@@ -9,6 +9,7 @@ import {
   getUserId,
 } from "../utils/functions";
 import { QueryResult } from "pg";
+import fetch from "node-fetch";
 
 export const createUser = (req: Request, res: Response) => {
   (async () => {
@@ -67,6 +68,7 @@ export const createUser = (req: Request, res: Response) => {
           categories: category?.rowCount ? category?.rows : [],
           paid_sub: user.paid_sub,
           subscribed_at: user.subscribed_at,
+          paypal_sub_id: user.paypal_sub_id,
         });
       }
     } catch (err) {
@@ -274,15 +276,22 @@ export const removeSharedAccount = (req: Request, res: Response) => {
 export const updateUserSub = (req: Request, res: Response) => {
   (async () => {
     const client = instance();
-    const { plan, paid } = req.body;
+    const { plan, paid, paypal_sub } = req.body;
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
     const updateFree =
       "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3 WHERE auth_id = $4";
     const valuesFree = [plan, paid, currentDate, auth_id];
     const updatePaid =
-      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4 WHERE auth_id = $5";
-    const valuesPaid = [plan, paid, currentDate, currentDate, auth_id];
+      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4, paypal_sub_id = $5 WHERE auth_id = $6";
+    const valuesPaid = [
+      plan,
+      paid,
+      currentDate,
+      currentDate,
+      paypal_sub,
+      auth_id,
+    ];
     const update = paid ? updatePaid : updateFree;
     const values = paid ? valuesPaid : valuesFree;
 
@@ -296,6 +305,83 @@ export const updateUserSub = (req: Request, res: Response) => {
       return res.status(500).json({
         err,
         action: "Update user sub",
+      });
+    }
+  })();
+};
+
+export const cancelUserSub = (req: Request, res: Response) => {
+  (async () => {
+    const client = instance();
+    const { paypal_sub } = req.body;
+    const auth_id = req.auth?.payload.sub;
+    const currentDate = new Date(Date.now()).toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let tokenData: any;
+
+    // Get paypal access token
+    try {
+      const response = await fetch(
+        `${process.env.PAYPAL_URL}/v1/oauth2/token`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization:
+              "Basic " +
+              Buffer.from(
+                process.env.PAYPAL_CLIENT_ID +
+                  ":" +
+                  process.env.PAYPAL_CLIENT_SECRET,
+              ).toString("base64"),
+          },
+          body: "grant_type=client_credentials",
+        },
+      );
+
+      tokenData = await response.json();
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Failed to get paypal access token",
+      });
+    }
+
+    // Cancel paypal subscription
+    try {
+      await fetch(
+        `${process.env.PAYPAL_URL}/v1/billing/subscriptions/${paypal_sub}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${tokenData?.access_token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ reason: "Not satisfied with the service" }),
+        },
+      );
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Failed to cancel paypal sub",
+      });
+    }
+
+    const update =
+      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, paypal_sub_id = $4 WHERE auth_id = $5";
+    const values = [2, false, currentDate, null, auth_id];
+
+    try {
+      await client.query(update, values);
+
+      return res.status(200).json({
+        success: true,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Cancel user sub",
       });
     }
   })();
