@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { instance } from "../utils/postgres";
-import { Budget, User } from "../utils/types";
+import { Budget, Referrals, ReferredBy, User } from "../utils/types";
 import { ManagementClient } from "auth0";
 import {
   checkConnectAccountExists,
@@ -10,25 +10,29 @@ import {
 } from "../utils/functions";
 import { QueryResult } from "pg";
 import fetch from "node-fetch";
+import dayjs from "dayjs";
 
 export const createUser = (req: Request, res: Response) => {
   (async () => {
     const client = instance();
-    const { email, plan } = req.body;
+    const { email, referral_code } = req.body;
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
     const insert =
-      "INSERT into users(auth_id, email, active, modified_at, subscription_id, subscribed_at) VALUES ($1, $2, $3, $4, $5, $6)";
-    const values = [auth_id, email, true, currentDate, currentDate, plan];
+      "INSERT into users(auth_id, email, active, modified_at, subscription_id, subscribed_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id";
+    const values = [auth_id, email, true, currentDate, 2, currentDate];
     let user;
     let connectedAccount;
     let category;
+    let referralCount;
 
     try {
       user = await checkForExistingUser(auth_id, client);
       let budgetInfo: QueryResult<Budget> | undefined = undefined;
 
       if (user.exists) {
+        const userReferralCode = `SB-${user.id}`;
+
         try {
           connectedAccount = await checkConnectAccountExists(user.id, client);
           budgetInfo = await client.query<Budget>(
@@ -56,19 +60,61 @@ export const createUser = (req: Request, res: Response) => {
           }
         }
 
+        // Check count of referrals
+        try {
+          referralCount = await client.query<Budget>(
+            "SELECT * FROM referred_by WHERE referred_by = $1",
+            [userReferralCode],
+          );
+        } catch (err) {
+          console.error(err, "Failed to get Referral count");
+        }
+
+        // Remove referral subscription after 1 year from subscribed_at date
+        const referralPlan =
+          user.subscription_id === 6 || user.subscription_id === 7;
+        const referralSubscribeYearEnd = dayjs(user.subscribed_at).add(
+          1,
+          "year",
+        );
+        let updatedUser;
+
+        if (
+          referralPlan &&
+          dayjs(currentDate).isAfter(referralSubscribeYearEnd)
+        ) {
+          try {
+            const update =
+              "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4 WHERE auth_id = $5 RETURNING subscription_id, subscribed_at, paid_sub";
+            const updateValues = [2, false, currentDate, currentDate, auth_id];
+
+            updatedUser = await client.query<User>(update, updateValues);
+          } catch (err) {
+            console.error(err, "Failed to remove referral plan subscription");
+          }
+        }
+
         return res.status(206).json({
           action: "User already exists",
           hasBudget: budgetInfo?.rowCount ? budgetInfo.rowCount > 0 : false,
-          subscription_id: user.subscription_id,
+          subscription_id: updatedUser?.rowCount
+            ? updatedUser.rows[0].subscription_id
+            : user.subscription_id,
           connected_message: connectedAccount?.exists || false,
           connected_id: connectedAccount?.id,
           primary_request: connectedAccount?.main_account,
           shared_account_email: connectedAccount?.second_account,
           is_connected: connectedAccount?.is_connected || false,
           categories: category?.rowCount ? category?.rows : [],
-          paid_sub: user.paid_sub,
-          subscribed_at: user.subscribed_at,
+          paid_sub: updatedUser?.rowCount
+            ? updatedUser.rows[0].paid_sub
+            : user.paid_sub,
+          subscribed_at: updatedUser?.rowCount
+            ? updatedUser.rows[0].subscribed_at
+            : user.subscribed_at,
           paypal_sub_id: user.paypal_sub_id,
+          referral_code: userReferralCode,
+          referral_count: referralCount?.rowCount ? referralCount.rowCount : 0,
         });
       }
     } catch (err) {
@@ -79,7 +125,38 @@ export const createUser = (req: Request, res: Response) => {
     }
 
     try {
-      await client.query<User>(insert, values);
+      const createdUser = await client.query<User>(insert, values);
+      const createdUserId = createdUser.rows[0].id;
+      const createdReferralCode = `SB-${createdUserId}`;
+
+      // Add user to referrals Table
+      try {
+        const referralInsert =
+          "INSERT into referrals(user_id, referral_code, referral_count, created_at) VALUES ($1, $2, $3, $4)";
+        const referralValues = [
+          createdUserId,
+          createdReferralCode,
+          0,
+          currentDate,
+        ];
+
+        await client.query<Referrals>(referralInsert, referralValues);
+      } catch (err) {
+        console.error(err, "Failed to add user to Referrals");
+      }
+
+      // Add who referred user to referred_by Table
+      if (referral_code) {
+        try {
+          const referredByInsert =
+            "INSERT into referred_by(user_id, referred_by, created_at) VALUES ($1, $2, $3)";
+          const referredByValues = [createdUserId, referral_code, currentDate];
+
+          await client.query<ReferredBy>(referredByInsert, referredByValues);
+        } catch (err) {
+          console.error(err, "Failed to add record for referred_by");
+        }
+      }
 
       return res.status(200).json({
         success: true,
@@ -87,6 +164,8 @@ export const createUser = (req: Request, res: Response) => {
         subscription_id: 2,
         connected_message: false,
         is_connected: false,
+        referral_code: createdReferralCode,
+        referral_count: 0,
       });
     } catch (err) {
       return res.status(500).json({

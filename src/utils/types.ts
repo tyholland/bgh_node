@@ -87,3 +87,16 @@ export interface ConnectedAccount {
   allowed_account: number;
   is_connected: boolean;
 }
+
+export interface Referrals {
+  id: number;
+  user_id: number;
+  referral_code: string;
+  referral_count: number;
+}
+
+export interface ReferredBy {
+  id: number;
+  user_id: number;
+  referred_by: string;
+}
