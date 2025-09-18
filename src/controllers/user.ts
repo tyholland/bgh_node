@@ -15,12 +15,19 @@ import dayjs from "dayjs";
 export const createUser = (req: Request, res: Response) => {
   (async () => {
     const client = instance();
-    const { email, referral_code } = req.body;
+    const { email, referral_code, plan } = req.body;
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
     const insert =
       "INSERT into users(auth_id, email, active, modified_at, subscription_id, subscribed_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id";
-    const values = [auth_id, email, true, currentDate, 2, currentDate];
+    const values = [
+      auth_id,
+      email,
+      true,
+      currentDate,
+      Number(plan) || 2,
+      currentDate,
+    ];
     let user;
     let connectedAccount;
     let category;
@@ -161,7 +168,7 @@ export const createUser = (req: Request, res: Response) => {
       return res.status(200).json({
         success: true,
         hasBudget: false,
-        subscription_id: 2,
+        subscription_id: Number(plan) || 2,
         connected_message: false,
         is_connected: false,
         referral_code: createdReferralCode,
