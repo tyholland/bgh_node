@@ -3,13 +3,13 @@ import { instance } from "../utils/postgres";
 import { Budget, Referrals, ReferredBy, User } from "../utils/types";
 import { ManagementClient } from "auth0";
 import {
+  cancelPaypalSubscription,
   checkConnectAccountExists,
   checkForExistingUser,
   getUserByEmail,
   getUserId,
 } from "../utils/functions";
 import { QueryResult } from "pg";
-import fetch from "node-fetch";
 import dayjs from "dayjs";
 
 export const createUser = (req: Request, res: Response) => {
@@ -90,6 +90,16 @@ export const createUser = (req: Request, res: Response) => {
           referralPlan &&
           dayjs(currentDate).isAfter(referralSubscribeYearEnd)
         ) {
+          try {
+            await cancelPaypalSubscription(res, user.paypal_sub_id as string);
+          } catch (err) {
+            return res.status(500).json({
+              err,
+              action:
+                "createUser - Failed to cancel paypal subscription function",
+            });
+          }
+
           try {
             const update =
               "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4 WHERE auth_id = $5 RETURNING subscription_id, subscribed_at, paid_sub";
@@ -402,61 +412,19 @@ export const cancelUserSub = (req: Request, res: Response) => {
     const { paypal_sub } = req.body;
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let tokenData: any;
 
-    // Get paypal access token
     try {
-      const response = await fetch(
-        `${process.env.PAYPAL_URL}/v1/oauth2/token`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization:
-              "Basic " +
-              Buffer.from(
-                process.env.PAYPAL_CLIENT_ID +
-                  ":" +
-                  process.env.PAYPAL_CLIENT_SECRET,
-              ).toString("base64"),
-          },
-          body: "grant_type=client_credentials",
-        },
-      );
-
-      tokenData = await response.json();
+      await cancelPaypalSubscription(res, paypal_sub);
     } catch (err) {
       return res.status(500).json({
         err,
-        action: "Failed to get paypal access token",
-      });
-    }
-
-    // Cancel paypal subscription
-    try {
-      await fetch(
-        `${process.env.PAYPAL_URL}/v1/billing/subscriptions/${paypal_sub}/cancel`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${tokenData?.access_token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({ reason: "Not satisfied with the service" }),
-        },
-      );
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Failed to cancel paypal sub",
+        action: "Failed to cancel paypal subscription function",
       });
     }
 
     const update =
-      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, paypal_sub_id = $4 WHERE auth_id = $5";
-    const values = [2, false, currentDate, null, auth_id];
+      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4, paypal_sub_id = $5 WHERE auth_id = $6";
+    const values = [2, false, currentDate, currentDate, null, auth_id];
 
     try {
       await client.query(update, values);

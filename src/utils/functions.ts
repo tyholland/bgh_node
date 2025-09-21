@@ -1,6 +1,8 @@
 import { Client, QueryResult } from "pg";
 import { AddedBudgetItem, BudgetItem, ConnectedAccount, User } from "./types";
 import { listOfMonths } from "./constants";
+import { Response } from "express";
+import fetch from "node-fetch";
 
 export const sortBudget = (a: BudgetItem, b: BudgetItem) => {
   return a.label.toLowerCase() > b.label.toLowerCase()
@@ -347,4 +349,58 @@ export const getUserByEmail = async (email: string, client: Client) => {
     exists: user.rowCount ? user.rowCount > 0 : false,
     id: user.rows.length > 0 ? user.rows[0].id : undefined,
   };
+};
+
+export const cancelPaypalSubscription = async (
+  res: Response,
+  paypal_sub: string,
+) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let tokenData: any;
+
+  // Get paypal access token
+  try {
+    const response = await fetch(`${process.env.PAYPAL_URL}/v1/oauth2/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization:
+          "Basic " +
+          Buffer.from(
+            process.env.PAYPAL_CLIENT_ID +
+              ":" +
+              process.env.PAYPAL_CLIENT_SECRET,
+          ).toString("base64"),
+      },
+      body: "grant_type=client_credentials",
+    });
+
+    tokenData = await response.json();
+  } catch (err) {
+    return res.status(500).json({
+      err,
+      action: "Failed to get paypal access token",
+    });
+  }
+
+  // Cancel paypal subscription
+  try {
+    await fetch(
+      `${process.env.PAYPAL_URL}/v1/billing/subscriptions/${paypal_sub}/cancel`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${tokenData?.access_token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ reason: "Not satisfied with the service" }),
+      },
+    );
+  } catch (err) {
+    return res.status(500).json({
+      err,
+      action: "Failed to cancel paypal sub",
+    });
+  }
 };
