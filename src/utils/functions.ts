@@ -268,7 +268,7 @@ export const insertBasedOnCadence = async (
         value,
         paid,
         user_id,
-        i + 1,
+        budget_date_id === 0 ? i + 1 : i,
         currentDate,
         frequency,
         category_id || null,
