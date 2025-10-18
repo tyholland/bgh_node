@@ -19,7 +19,7 @@ export const createUser = (req: Request, res: Response) => {
     const auth_id = req.auth?.payload.sub;
     const currentDate = new Date(Date.now()).toISOString();
     const insert =
-      "INSERT into users(auth_id, email, active, modified_at, subscription_id, subscribed_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id";
+      "INSERT into users(auth_id, email, active, modified_at, subscription_id, subscribed_at, currency) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id";
     const values = [
       auth_id,
       email,
@@ -27,6 +27,7 @@ export const createUser = (req: Request, res: Response) => {
       currentDate,
       Number(plan) || 2,
       currentDate,
+      "USD",
     ];
     let user;
     let connectedAccount;
@@ -132,6 +133,9 @@ export const createUser = (req: Request, res: Response) => {
           paypal_sub_id: user.paypal_sub_id,
           referral_code: userReferralCode,
           referral_count: referralCount?.rowCount ? referralCount.rowCount : 0,
+          currency: updatedUser?.rowCount
+            ? updatedUser.rows[0].currency
+            : user.currency,
         });
       }
     } catch (err) {
@@ -175,6 +179,24 @@ export const createUser = (req: Request, res: Response) => {
         }
       }
 
+      // Add default categories
+      const categories = ["Non-Discretionary", "Savings", "Fun Money"];
+
+      for (let i = 0; i <= categories.length; i++) {
+        try {
+          const insert =
+            "INSERT into category(user_id, label, modified_at) VALUES ($1, $2, $3)";
+          const values = [createdUserId, categories[i], currentDate];
+
+          await client.query(insert, values);
+        } catch (err) {
+          console.error(
+            err,
+            `Failed to add default categories of ${categories[i]}`,
+          );
+        }
+      }
+
       return res.status(200).json({
         success: true,
         hasBudget: false,
@@ -183,6 +205,7 @@ export const createUser = (req: Request, res: Response) => {
         is_connected: false,
         referral_code: createdReferralCode,
         referral_count: 0,
+        currency: "USD",
       });
     } catch (err) {
       return res.status(500).json({
@@ -436,6 +459,31 @@ export const cancelUserSub = (req: Request, res: Response) => {
       return res.status(500).json({
         err,
         action: "Cancel user sub",
+      });
+    }
+  })();
+};
+
+export const changeCurrency = (req: Request, res: Response) => {
+  (async () => {
+    const client = instance();
+    const { currency } = req.body;
+    const auth_id = req.auth?.payload.sub;
+    const currentDate = new Date(Date.now()).toISOString();
+    const update =
+      "UPDATE users SET currency = $1, modified_at = $2 WHERE auth_id = $3";
+    const values = [currency, currentDate, auth_id];
+
+    try {
+      await client.query(update, values);
+
+      return res.status(200).json({
+        success: true,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Update user currency",
       });
     }
   })();

@@ -22,6 +22,7 @@ export interface BudgetParam {
   amount: number;
   paid: boolean;
   frequency: string;
+  category_id?: number;
   budget_id?: number;
 }
 
@@ -74,6 +75,7 @@ export interface User {
   paid_sub: boolean;
   subscribed_at: string;
   paypal_sub_id: string;
+  currency: string;
 }
 
 export interface BudgetInsertIds {

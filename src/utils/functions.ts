@@ -126,6 +126,7 @@ export const checkForExistingUser = async (
       user.rows.length > 0 ? user.rows[0].subscribed_at : undefined,
     paypal_sub_id:
       user.rows.length > 0 ? user.rows[0].paypal_sub_id : undefined,
+    currency: user.rows.length > 0 ? user.rows[0].currency : undefined,
   };
 };
 

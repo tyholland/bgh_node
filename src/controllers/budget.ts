@@ -62,10 +62,11 @@ export const createBudget = (req: Request, res: Response) => {
             month,
             year,
             frequency,
+            category_id,
           }: BudgetParam = budgetData[b];
           if (month === insertMonth && year === insertYear) {
             const insert =
-              "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, budget_date_id";
+              "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, budget_date_id";
             const values = [
               type,
               label,
@@ -75,6 +76,7 @@ export const createBudget = (req: Request, res: Response) => {
               budgetDateId.rows[0].id,
               currentDate,
               frequency,
+              category_id,
             ];
 
             try {
