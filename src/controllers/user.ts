@@ -182,7 +182,7 @@ export const createUser = (req: Request, res: Response) => {
       // Add default categories
       const categories = ["Non-Discretionary", "Savings", "Fun Money"];
 
-      for (let i = 0; i <= categories.length; i++) {
+      for (let i = 0; i <= categories.length - 1; i++) {
         try {
           const insert =
             "INSERT into category(user_id, label, modified_at) VALUES ($1, $2, $3)";
