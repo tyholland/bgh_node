@@ -17,7 +17,11 @@ import {
   updateBudgetItem,
 } from "../controllers/budget";
 import { addCategory, deleteCategory } from "../controllers/category";
-import { startReferralPlan } from "../controllers/referrals";
+import {
+  getClientBudget,
+  getClientData,
+  updateReferralName,
+} from "../controllers/referrals";
 
 export const routes = (app: Express) => {
   // Create User
@@ -65,6 +69,12 @@ export const routes = (app: Express) => {
   // Delete Category
   app.put("/category/remove", deleteCategory);
 
-  // Referral Start New Plan
-  app.put("/referral/start", startReferralPlan);
+  // Update Client Name
+  app.put("/referral/name", updateReferralName);
+
+  // Get Client Data
+  app.get("/referral/client/:client_id", getClientData);
+
+  // Get Client Budget
+  app.get("/referral/budget/:client_id", getClientBudget);
 };
