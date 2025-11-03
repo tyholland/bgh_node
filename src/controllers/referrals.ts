@@ -220,3 +220,93 @@ export const getClientBudget = (req: Request, res: Response) => {
     }
   })();
 };
+
+export const startTrialPlan = (req: Request, res: Response) => {
+  (async () => {
+    const client = instance();
+    const { plan } = req.body;
+    const auth_id = req.auth?.payload.sub;
+    const currentDate = new Date(Date.now()).toISOString();
+    const update =
+      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4 WHERE auth_id = $5";
+    const values = [plan, false, currentDate, currentDate, auth_id];
+    let user;
+
+    try {
+      await client.query(update, values);
+
+      // Get user
+      try {
+        user = await client.query<User>(
+          "SELECT * FROM users WHERE auth_id = $1",
+          [auth_id],
+        );
+      } catch (err) {
+        return res.status(400).json({
+          err,
+          action: "Failed to find correct user",
+        });
+      }
+
+      // Update medal game
+      try {
+        await client.query<User>(
+          "UPDATE meda_game SET claimed_prize = $1, modified_at = $2 WHERE user_id = $3",
+          [true, currentDate, user?.rows[0].id],
+        );
+      } catch (err) {
+        return res.status(400).json({
+          err,
+          action: "Failed to update medal game details",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Update user with medal game trial sub",
+      });
+    }
+  })();
+};
+
+export const updateMedalGame = (req: Request, res: Response) => {
+  (async () => {
+    const client = instance();
+    const { is_claimed } = req.body;
+    const auth_id = req.auth?.payload.sub;
+    const currentDate = new Date(Date.now()).toISOString();
+    let user;
+
+    try {
+      user = await client.query<User>(
+        "SELECT * FROM users WHERE auth_id = $1",
+        [auth_id],
+      );
+    } catch (err) {
+      return res.status(400).json({
+        err,
+        action: "Failed to find correct user",
+      });
+    }
+
+    try {
+      await client.query<User>(
+        "UPDATE meda_game SET claimed_prize = $1, modified_at = $2 WHERE user_id = $3",
+        [is_claimed, currentDate, user?.rows[0].id],
+      );
+
+      return res.status(200).json({
+        success: true,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Update user with medal game with claimed prize",
+      });
+    }
+  })();
+};

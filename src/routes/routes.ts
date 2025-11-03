@@ -20,6 +20,7 @@ import { addCategory, deleteCategory } from "../controllers/category";
 import {
   getClientBudget,
   getClientData,
+  startTrialPlan,
   updateReferralName,
 } from "../controllers/referrals";
 
@@ -77,4 +78,7 @@ export const routes = (app: Express) => {
 
   // Get Client Budget
   app.get("/referral/budget/:client_id", getClientBudget);
+
+  // Medal Game Start Trial Plan
+  app.put("/referral/start", startTrialPlan);
 };

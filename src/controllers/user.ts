@@ -1,16 +1,19 @@
 import { Request, Response } from "express";
 import { instance } from "../utils/postgres";
-import { Budget, Referrals, ReferredBy, User } from "../utils/types";
+import { Budget, User } from "../utils/types";
 import { ManagementClient } from "auth0";
 import {
+  addCategories,
   cancelPaypalSubscription,
   checkConnectAccountExists,
   checkForExistingUser,
+  getMedalGameData,
   getUserByEmail,
   getUserId,
+  handleReferrals,
+  removeSubscriptionAfterTrial,
 } from "../utils/functions";
 import { QueryResult } from "pg";
-import dayjs from "dayjs";
 
 export const createUser = (req: Request, res: Response) => {
   (async () => {
@@ -83,39 +86,22 @@ export const createUser = (req: Request, res: Response) => {
           }
         }
 
-        // Remove referral subscription after 1 year from subscribed_at date
-        const referralPlan =
-          user.subscription_id === 6 || user.subscription_id === 7;
-        const referralSubscribeYearEnd = dayjs(user.subscribed_at).add(
-          1,
-          "year",
+        // Remove trial subscription after 1 month from subscribed_at date
+        const updatedUser = await removeSubscriptionAfterTrial(
+          user,
+          currentDate,
+          auth_id,
+          client,
         );
-        let updatedUser;
 
-        if (
-          referralPlan &&
-          dayjs(currentDate).isAfter(referralSubscribeYearEnd)
-        ) {
-          try {
-            await cancelPaypalSubscription(res, user.paypal_sub_id as string);
-          } catch (err) {
-            return res.status(500).json({
-              err,
-              action:
-                "createUser - Failed to cancel paypal subscription function",
-            });
-          }
-
-          try {
-            const update =
-              "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4 WHERE auth_id = $5 RETURNING subscription_id, subscribed_at, paid_sub";
-            const updateValues = [2, false, currentDate, currentDate, auth_id];
-
-            updatedUser = await client.query<User>(update, updateValues);
-          } catch (err) {
-            console.error(err, "Failed to remove referral plan subscription");
-          }
-        }
+        // Get medal game reults
+        const medal_game = await getMedalGameData(
+          user,
+          category?.rowCount ? category?.rows : [],
+          budgetInfo,
+          currentDate,
+          client,
+        );
 
         return res.status(206).json({
           action: "User already exists",
@@ -141,6 +127,7 @@ export const createUser = (req: Request, res: Response) => {
           currency: updatedUser?.rowCount
             ? updatedUser.rows[0].currency
             : user.currency,
+          medal_game,
         });
       }
     } catch (err) {
@@ -153,64 +140,19 @@ export const createUser = (req: Request, res: Response) => {
     try {
       const createdUser = await client.query<User>(insert, values);
       const createdUserId = createdUser.rows[0].id;
-      let createdReferralCode = null;
 
-      if (Number(plan) === 8) {
-        createdReferralCode = `SB-Partner${createdUserId}`;
-
-        // Add user to referrals Table
-        try {
-          const referralInsert =
-            "INSERT into referrals(user_id, referral_code, referral_count, created_at) VALUES ($1, $2, $3, $4)";
-          const referralValues = [
-            createdUserId,
-            createdReferralCode,
-            0,
-            currentDate,
-          ];
-
-          await client.query<Referrals>(referralInsert, referralValues);
-        } catch (err) {
-          console.error(err, "Failed to add user to Referrals");
-        }
-      }
-
-      if (Number(plan) === 9) {
-        // Add who referred user to referred_by Table
-        if (referral_code) {
-          try {
-            const referredByInsert =
-              "INSERT into referred_by(user_id, referred_by, created_at) VALUES ($1, $2, $3)";
-            const referredByValues = [
-              createdUserId,
-              referral_code,
-              currentDate,
-            ];
-
-            await client.query<ReferredBy>(referredByInsert, referredByValues);
-          } catch (err) {
-            console.error(err, "Failed to add record for referred_by");
-          }
-        }
-      }
+      // Handle partner referrals and client accepted referrals
+      // Return referral code
+      const createdReferralCode = await handleReferrals(
+        createdUserId,
+        currentDate,
+        plan,
+        referral_code,
+        client,
+      );
 
       // Add default categories
-      const categories = ["Non-Discretionary", "Savings", "Fun Money"];
-
-      for (let i = 0; i <= categories.length - 1; i++) {
-        try {
-          const insert =
-            "INSERT into category(user_id, label, modified_at) VALUES ($1, $2, $3)";
-          const values = [createdUserId, categories[i], currentDate];
-
-          await client.query(insert, values);
-        } catch (err) {
-          console.error(
-            err,
-            `Failed to add default categories of ${categories[i]}`,
-          );
-        }
-      }
+      await addCategories(createdUserId, currentDate, client);
 
       return res.status(200).json({
         success: true,
