@@ -66,7 +66,7 @@ export const createBudget = (req: Request, res: Response) => {
           }: BudgetParam = budgetData[b];
           if (month === insertMonth && year === insertYear) {
             const insert =
-              "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, budget_date_id";
+              "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, budget_date_id";
             const values = [
               type,
               label,
@@ -77,6 +77,7 @@ export const createBudget = (req: Request, res: Response) => {
               currentDate,
               frequency,
               category_id,
+              currentDate,
             ];
 
             try {
@@ -181,7 +182,7 @@ export const addBudgetItem = (req: Request, res: Response) => {
     }
 
     const insert =
-      "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
+      "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id";
 
     try {
       const budgetIds = await insertBasedOnCadence(

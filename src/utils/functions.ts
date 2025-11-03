@@ -275,6 +275,7 @@ export const insertBasedOnCadence = async (
         currentDate,
         frequency,
         category_id || null,
+        currentDate,
       ];
       const budgetId = await client.query(queryString, values);
       budgetArray.push(budgetId.rows[0]?.id);
@@ -644,7 +645,7 @@ export const getMedalGameData = async (
             listOfMonths[dayjs(item.modified_at).month()] === budget.month;
           const isIncome = item.type === "income";
           const isDifferent = dayjs(item.modified_at).isAfter(
-            dayjs(user.subscribed_at),
+            dayjs(item.created_at),
           );
 
           return isUser && isBudgetDate && isMonth && isIncome && isDifferent;
@@ -663,7 +664,7 @@ export const getMedalGameData = async (
             listOfMonths[dayjs(item.modified_at).month()] === budget.month;
           const isIncome = item.type === "expense";
           const isDifferent = dayjs(item.modified_at).isAfter(
-            dayjs(user.subscribed_at),
+            dayjs(item.created_at),
           );
 
           return isUser && isBudgetDate && isMonth && isIncome && isDifferent;

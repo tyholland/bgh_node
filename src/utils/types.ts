@@ -12,6 +12,7 @@ export interface Budget {
   frequency: string;
   category_id: number;
   modified_at: string;
+  created_at: string;
 }
 
 // Values we get from FE when creating a budget
