@@ -300,6 +300,7 @@ export const insertBasedOnCadence = async (
             currentDate,
             frequency,
             category_id || null,
+            currentDate,
           ];
           const budgetId = await client.query(queryString, values);
           budgetArray.push(budgetId.rows[0]?.id);
@@ -320,6 +321,7 @@ export const insertBasedOnCadence = async (
         currentDate,
         frequency,
         category_id || null,
+        currentDate,
       ];
       const budgetId = await client.query(queryString, values);
       budgetArray.push(budgetId.rows[0]?.id);
@@ -338,6 +340,7 @@ export const insertBasedOnCadence = async (
     currentDate,
     frequency,
     category_id || null,
+    currentDate,
   ];
   const budgetId = await client.query(queryString, values);
   return budgetId.rows[0]?.id;
