@@ -693,7 +693,7 @@ export const getMedalGameData = async (
         // Update the medal game
         try {
           await client.query(
-            "UPDATE medal_game SET total_points = $1, modified_at = $2 WHERE user_id = $1",
+            "UPDATE medal_game SET total_points = $1, modified_at = $2 WHERE user_id = $3",
             [totalPoints, currentDate, user.id],
           );
         } catch (err) {
