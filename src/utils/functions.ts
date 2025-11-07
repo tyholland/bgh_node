@@ -246,6 +246,19 @@ export const insertBasedOnCadence = async (
     category_id,
   } = responseBody;
   const currentDate = new Date(Date.now()).toISOString();
+  let allMonths;
+
+  try {
+    allMonths = await client.query(
+      "SELECT id FROM budget_date WHERE user_id = $1",
+      [user_id],
+    );
+  } catch (err) {
+    console.error(err);
+  }
+
+  const monthLength =
+    !!allMonths && allMonths.rowCount ? allMonths.rows.length : 0;
 
   if (cadence === "Future Months") {
     let startingMonth: number;
@@ -262,16 +275,16 @@ export const insertBasedOnCadence = async (
       startingMonth = 0;
     }
 
-    const loopLength = 11 - startingMonth + budget_date_id;
-
-    for (let i = budget_date_id; i <= loopLength; i++) {
+    for (let i = startingMonth; i <= monthLength; i++) {
       const values = [
         type,
         label,
         value,
         paid,
         user_id,
-        budget_date_id === 0 ? i + 1 : i,
+        budget_date_id === 0
+          ? allMonths?.rows[i + 1].id
+          : allMonths?.rows[i].id,
         currentDate,
         frequency,
         category_id || null,
@@ -288,7 +301,7 @@ export const insertBasedOnCadence = async (
     const budgetArray: number[] = [];
 
     if (frequency === "Quarterly") {
-      for (let i = 0; i <= 11; i++) {
+      for (let i = 0; i <= monthLength; i++) {
         if (i === 2 || i === 5 || i === 8 || i === 11) {
           const values = [
             type,
@@ -296,7 +309,7 @@ export const insertBasedOnCadence = async (
             value,
             paid,
             user_id,
-            i + 1,
+            allMonths?.rows[i].id,
             currentDate,
             frequency,
             category_id || null,
@@ -310,14 +323,14 @@ export const insertBasedOnCadence = async (
       return budgetArray;
     }
 
-    for (let i = 0; i <= 11; i++) {
+    for (let i = 0; i <= monthLength; i++) {
       const values = [
         type,
         label,
         value,
         paid,
         user_id,
-        i + 1,
+        allMonths?.rows[i].id,
         currentDate,
         frequency,
         category_id || null,
