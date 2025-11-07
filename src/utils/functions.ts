@@ -256,7 +256,6 @@ export const insertBasedOnCadence = async (
   } catch (err) {
     console.error(err);
   }
-
   const monthLength =
     !!allMonths && allMonths.rowCount ? allMonths.rows.length : 0;
 
@@ -275,16 +274,16 @@ export const insertBasedOnCadence = async (
       startingMonth = 0;
     }
 
-    for (let i = startingMonth; i <= monthLength; i++) {
+    const loopLength = 11 - startingMonth + budget_date_id;
+
+    for (let i = budget_date_id; i <= loopLength; i++) {
       const values = [
         type,
         label,
         value,
         paid,
         user_id,
-        budget_date_id === 0
-          ? allMonths?.rows[i + 1].id
-          : allMonths?.rows[i].id,
+        budget_date_id === 0 ? i + 1 : i,
         currentDate,
         frequency,
         category_id || null,
