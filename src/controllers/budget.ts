@@ -9,6 +9,7 @@ import {
   BudgetItem,
   BudgetParam,
   BudgetResponse,
+  User,
 } from "../utils/types";
 import {
   getUserId,
@@ -16,6 +17,7 @@ import {
   sortBudget,
   insertBasedOnCadence,
 } from "../utils/functions";
+import dayjs from "dayjs";
 
 export const createBudget = (req: Request, res: Response) => {
   (async () => {
@@ -327,6 +329,109 @@ export const deleteBudgetItem = (req: Request, res: Response) => {
         err,
         action: "Delete budget item",
       });
+    }
+  })();
+};
+
+export const addBudgetForNewYear = () => {
+  (async () => {
+    const client = instance();
+    const count = listOfMonths.length - 1;
+    let users: User[];
+    let budgetData: Budget[] = [];
+
+    try {
+      const userData = await client.query<User>("SELECT * FROM users");
+      users = userData.rows;
+    } catch {
+      throw new Error("Failed to get all users");
+    }
+
+    for (let j = 0; j <= users.length; j++) {
+      const user = users[j];
+
+      try {
+        const budgetDate = await client.query<BudgetDate>(
+          "SELECT * FROM budget_date WHERE user_id = $1",
+          [user.id],
+        );
+        const budgetIds = budgetDate.rows.map((item) => {
+          if (item.year === dayjs().year()) {
+            return item.id;
+          }
+
+          return 0;
+        });
+        const highestNumber = Math.max(...budgetIds);
+
+        if (
+          budgetDate.rows.some(
+            (item) => item.year === dayjs().add(1, "year").year(),
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const oldBudget = await client.query<Budget>(
+            "SELECT * FROM budget WHERE budget_date_id = $1",
+            [highestNumber],
+          );
+
+          budgetData = oldBudget.rows;
+        } catch {
+          throw new Error("Failed to get old budget info");
+        }
+      } catch {
+        throw new Error("Failed to get old budget dates");
+      }
+
+      for (let i = 0; i <= count; i++) {
+        const insertMonth = listOfMonths[i];
+        const insertYear = dayjs().add(1, "year").year();
+        const currentDate = new Date(Date.now()).toISOString();
+        const insert =
+          "INSERT into budget_date(month, year, user_id, modified_at) VALUES ($1, $2, $3, $4) RETURNING id";
+        const values = [insertMonth, insertYear, user.id, currentDate];
+
+        try {
+          const budgetDateId = await client.query(insert, values);
+
+          for (let b = 0; b <= budgetData.length - 1; b++) {
+            const {
+              type,
+              label,
+              amount,
+              paid,
+              frequency,
+              category_id,
+            }: BudgetParam = budgetData[b];
+
+            const budgetInsert =
+              "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, budget_date_id";
+            const budgetValues = [
+              type,
+              label,
+              amount,
+              paid,
+              user.id,
+              budgetDateId.rows[0].id,
+              currentDate,
+              frequency,
+              category_id,
+              currentDate,
+            ];
+
+            try {
+              await client.query(budgetInsert, budgetValues);
+            } catch {
+              throw new Error("Failed to add new budget");
+            }
+          }
+        } catch {
+          throw new Error("Failed to add new budget date");
+        }
+      }
     }
   })();
 };

@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { routes } from "./routes/routes";
 import { auth } from "express-oauth2-jwt-bearer";
 import cors from "cors";
+import { budgetNewYear } from "./utils/cronJobs";
 
 dotenv.config();
 
@@ -31,4 +32,5 @@ routes(app);
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);
+  budgetNewYear();
 });
