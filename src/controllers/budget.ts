@@ -8,14 +8,13 @@ import {
   BudgetInsertIds,
   BudgetItem,
   BudgetParam,
-  BudgetResponse,
   User,
 } from "../utils/types";
 import {
   getUserId,
   updateBasedOnCadence,
-  sortBudget,
   insertBasedOnCadence,
+  getBudgetInformation,
 } from "../utils/functions";
 import dayjs from "dayjs";
 
@@ -114,10 +113,27 @@ export const updateBudgetItem = (req: Request, res: Response) => {
   (async () => {
     const client = instance();
     const responseBody: BudgetItem = req.body;
+    const auth_id = req.auth?.payload.sub;
+    let user_id: number | undefined;
     const update =
       "UPDATE budget SET label = $1, amount = $2, paid = $3, modified_at = $4, frequency = $5, category_id = $6 WHERE id = $7";
     let budgetInfo;
     let budgetData;
+
+    try {
+      user_id = await getUserId(auth_id, client);
+
+      if (!user_id) {
+        return res.status(500).json({
+          action: "User doesn't exist",
+        });
+      }
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Get user_id",
+      });
+    }
 
     // Get the type and label of the specific budget
     try {
@@ -149,9 +165,14 @@ export const updateBudgetItem = (req: Request, res: Response) => {
     try {
       await updateBasedOnCadence(client, responseBody, budgetData, update);
 
-      return res.status(200).json({
-        success: true,
-      });
+      try {
+        await getBudgetInformation(res, client, user_id);
+      } catch (err) {
+        return res.status(500).json({
+          err,
+          action: "updateBudgetItem - getBudgetInformation",
+        });
+      }
     } catch (err) {
       return res.status(500).json({
         err,
@@ -184,19 +205,19 @@ export const addBudgetItem = (req: Request, res: Response) => {
     }
 
     const insert =
-      "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id";
+      "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)";
 
     try {
-      const budgetIds = await insertBasedOnCadence(
-        client,
-        responseBody,
-        insert,
-        user_id,
-      );
+      await insertBasedOnCadence(client, responseBody, insert, user_id);
 
-      return res.status(200).json({
-        budget_id: budgetIds,
-      });
+      try {
+        await getBudgetInformation(res, client, user_id);
+      } catch (err) {
+        return res.status(500).json({
+          err,
+          action: "addBudgetItem - getBudgetInformation",
+        });
+      }
     } catch (err) {
       return res.status(500).json({
         err,
@@ -228,70 +249,11 @@ export const getBudget = (req: Request, res: Response) => {
     }
 
     try {
-      const budgetDate = await client.query<BudgetDate>(
-        "SELECT * FROM budget_date WHERE user_id = $1",
-        [user_id],
-      );
-      const fullBudget: BudgetResponse[] = [];
-
-      for (let i = 0; i <= budgetDate.rows.length - 1; i++) {
-        const { id, year, month } = budgetDate.rows[i];
-        const income: BudgetItem[] = [];
-        const expense: BudgetItem[] = [];
-
-        try {
-          const budgetIncome = await client.query<Budget>(
-            "SELECT * FROM budget WHERE budget_date_id = $1 AND type = $2",
-            [id, "income"],
-          );
-          const budgetExpense = await client.query<Budget>(
-            "SELECT * FROM budget WHERE budget_date_id = $1 AND type = $2",
-            [id, "expense"],
-          );
-
-          budgetIncome.rows.forEach((response: Budget) => {
-            income.push({
-              label: response.label,
-              value: Number(response.amount),
-              paid: response.paid,
-              budget_id: response.id,
-              budget_date_id: response.budget_date_id,
-            });
-          });
-
-          budgetExpense.rows.forEach((response: Budget) => {
-            expense.push({
-              label: response.label,
-              value: Number(response.amount),
-              paid: response.paid,
-              frequency: response.frequency,
-              category_id: response.category_id,
-              budget_id: response.id,
-              budget_date_id: response.budget_date_id,
-            });
-          });
-
-          fullBudget.push({
-            year: year,
-            month: month,
-            income: income.sort(sortBudget),
-            expense: expense.sort(sortBudget),
-          });
-        } catch (err) {
-          return res.status(500).json({
-            err,
-            action: "Get budget info",
-          });
-        }
-      }
-
-      return res.status(200).json({
-        budget: fullBudget,
-      });
+      await getBudgetInformation(res, client, user_id);
     } catch (err) {
       return res.status(500).json({
         err,
-        action: "Get budget_date info",
+        action: "getBudget - getBudgetInformation",
       });
     }
   })();
@@ -302,9 +264,10 @@ export const deleteBudgetItem = (req: Request, res: Response) => {
     const client = instance();
     const auth_id = req.auth?.payload.sub;
     const { budget_id } = req.body;
+    let user_id: number | undefined;
 
     try {
-      const user_id = await getUserId(auth_id, client);
+      user_id = await getUserId(auth_id, client);
 
       if (!user_id) {
         return res.status(500).json({
@@ -321,9 +284,14 @@ export const deleteBudgetItem = (req: Request, res: Response) => {
     try {
       await client.query("DELETE FROM budget WHERE id = $1", [budget_id]);
 
-      return res.status(200).json({
-        success: true,
-      });
+      try {
+        await getBudgetInformation(res, client, user_id);
+      } catch (err) {
+        return res.status(500).json({
+          err,
+          action: "deleteBudgetItem - getBudgetInformation",
+        });
+      }
     } catch (err) {
       return res.status(500).json({
         err,

@@ -4,6 +4,7 @@ import {
   Budget,
   BudgetDate,
   BudgetItem,
+  BudgetResponse,
   ConnectedAccount,
   Referrals,
   ReferredBy,
@@ -261,7 +262,6 @@ export const insertBasedOnCadence = async (
 
   if (cadence === "Future Months") {
     let startingMonth: number;
-    const budgetArray: number[] = [];
 
     try {
       const selectedMonth = await client.query(
@@ -289,16 +289,11 @@ export const insertBasedOnCadence = async (
         category_id || null,
         currentDate,
       ];
-      const budgetId = await client.query(queryString, values);
-      budgetArray.push(budgetId.rows[0]?.id);
+      await client.query(queryString, values);
     }
-
-    return budgetArray;
   }
 
   if (cadence === "All Months") {
-    const budgetArray: number[] = [];
-
     if (frequency === "Quarterly") {
       for (let i = 0; i <= monthLength; i++) {
         if (i === 2 || i === 5 || i === 8 || i === 11) {
@@ -314,12 +309,9 @@ export const insertBasedOnCadence = async (
             category_id || null,
             currentDate,
           ];
-          const budgetId = await client.query(queryString, values);
-          budgetArray.push(budgetId.rows[0]?.id);
+          await client.query(queryString, values);
         }
       }
-
-      return budgetArray;
     }
 
     for (let i = 0; i <= monthLength; i++) {
@@ -335,11 +327,8 @@ export const insertBasedOnCadence = async (
         category_id || null,
         currentDate,
       ];
-      const budgetId = await client.query(queryString, values);
-      budgetArray.push(budgetId.rows[0]?.id);
+      await client.query(queryString, values);
     }
-
-    return budgetArray;
   }
 
   const values = [
@@ -354,8 +343,7 @@ export const insertBasedOnCadence = async (
     category_id || null,
     currentDate,
   ];
-  const budgetId = await client.query(queryString, values);
-  return budgetId.rows[0]?.id;
+  await client.query(queryString, values);
 };
 
 export const getUserByEmail = async (email: string, client: Client) => {
@@ -748,4 +736,78 @@ export const getMedalGameData = async (
     edit_income_in_month,
     add_category_in_month,
   };
+};
+
+export const getBudgetInformation = async (
+  res: Response,
+  client: Client,
+  user_id: number,
+) => {
+  try {
+    const budgetDate = await client.query<BudgetDate>(
+      "SELECT * FROM budget_date WHERE user_id = $1",
+      [user_id],
+    );
+    const fullBudget: BudgetResponse[] = [];
+
+    for (let i = 0; i <= budgetDate.rows.length - 1; i++) {
+      const { id, year, month } = budgetDate.rows[i];
+      const income: BudgetItem[] = [];
+      const expense: BudgetItem[] = [];
+
+      try {
+        const budgetIncome = await client.query<Budget>(
+          "SELECT * FROM budget WHERE budget_date_id = $1 AND type = $2",
+          [id, "income"],
+        );
+        const budgetExpense = await client.query<Budget>(
+          "SELECT * FROM budget WHERE budget_date_id = $1 AND type = $2",
+          [id, "expense"],
+        );
+
+        budgetIncome.rows.forEach((response: Budget) => {
+          income.push({
+            label: response.label,
+            value: Number(response.amount),
+            paid: response.paid,
+            budget_id: response.id,
+            budget_date_id: response.budget_date_id,
+          });
+        });
+
+        budgetExpense.rows.forEach((response: Budget) => {
+          expense.push({
+            label: response.label,
+            value: Number(response.amount),
+            paid: response.paid,
+            frequency: response.frequency,
+            category_id: response.category_id,
+            budget_id: response.id,
+            budget_date_id: response.budget_date_id,
+          });
+        });
+
+        fullBudget.push({
+          year: year,
+          month: month,
+          income: income.sort(sortBudget),
+          expense: expense.sort(sortBudget),
+        });
+      } catch (err) {
+        return res.status(500).json({
+          err,
+          action: "Get budget info",
+        });
+      }
+    }
+
+    return res.status(200).json({
+      budget: fullBudget,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      err,
+      action: "Get budget_date info",
+    });
+  }
 };
