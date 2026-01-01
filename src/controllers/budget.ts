@@ -403,3 +403,38 @@ export const addBudgetForNewYear = () => {
     }
   })();
 };
+
+export const addBudgetForNewYearRequest = (req: Request, res: Response) => {
+  (async () => {
+    const client = instance();
+    const auth_id = req.auth?.payload.sub;
+
+    try {
+      const user_id = await getUserId(auth_id, client);
+
+      if (!user_id) {
+        return res.status(500).json({
+          action: "User doesn't exist",
+        });
+      }
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Get user_id",
+      });
+    }
+
+    try {
+      addBudgetForNewYear();
+
+      return res.status(200).json({
+        success: true,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        err,
+        action: "Add budget for new year",
+      });
+    }
+  })();
+};
