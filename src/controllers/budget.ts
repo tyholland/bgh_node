@@ -16,7 +16,7 @@ import {
   insertBasedOnCadence,
   getBudgetInformation,
 } from "../utils/functions";
-import dayjs from "dayjs";
+// import dayjs from "dayjs";
 
 export const createBudget = (req: Request, res: Response) => {
   (async () => {
@@ -307,6 +307,10 @@ export const addBudgetForNewYear = () => {
     const count = listOfMonths.length - 1;
     let users: User[];
     let budgetData: Budget[] = [];
+    // const currentYear = dayjs().year();
+    // const newYear = dayjs().add(1, "year").year();
+    const currentYear = 2025;
+    const newYear = 2026;
 
     try {
       const userData = await client.query<User>("SELECT * FROM users");
@@ -324,7 +328,7 @@ export const addBudgetForNewYear = () => {
           [user.id],
         );
         const budgetIds = budgetDate.rows.map((item) => {
-          if (item.year === dayjs().year()) {
+          if (item.year === currentYear) {
             return item.id;
           }
 
@@ -332,11 +336,7 @@ export const addBudgetForNewYear = () => {
         });
         const highestNumber = Math.max(...budgetIds);
 
-        if (
-          budgetDate.rows.some(
-            (item) => item.year === dayjs().add(1, "year").year(),
-          )
-        ) {
+        if (budgetDate.rows.some((item) => item.year === newYear)) {
           return;
         }
 
@@ -356,7 +356,7 @@ export const addBudgetForNewYear = () => {
 
       for (let i = 0; i <= count; i++) {
         const insertMonth = listOfMonths[i];
-        const insertYear = dayjs().add(1, "year").year();
+        const insertYear = newYear;
         const currentDate = new Date(Date.now()).toISOString();
         const insert =
           "INSERT into budget_date(month, year, user_id, modified_at) VALUES ($1, $2, $3, $4) RETURNING id";
