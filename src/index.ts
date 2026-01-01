@@ -25,6 +25,7 @@ app.use(
 );
 
 app.get("/", (req: Request, res: Response) => {
+  budgetNewYear();
   res.send("Simple Budgeting API");
 });
 
@@ -32,5 +33,4 @@ routes(app);
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);
-  budgetNewYear();
 });
