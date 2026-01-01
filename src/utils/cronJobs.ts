@@ -2,7 +2,7 @@
 import { addBudgetForNewYear } from "../controllers/budget";
 
 export const budgetNewYear = () => {
-  // cron.schedule("*/30 * * 12 *", () => {
+  // cron.schedule("*/1 * * 12 *", () => {
   addBudgetForNewYear();
   // });
 };
