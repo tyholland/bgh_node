@@ -10,6 +10,7 @@ import {
   updateUserSub,
 } from "../controllers/user";
 import {
+  addBudgetForNewYear,
   addBudgetItem,
   createBudget,
   deleteBudgetItem,
@@ -63,6 +64,9 @@ export const routes = (app: Express) => {
 
   // Delete Budget Item
   app.delete("/budget/remove", deleteBudgetItem);
+
+  // Trigger Budget New Year
+  app.get("/budget/trigger", addBudgetForNewYear);
 
   // Create Category
   app.post("/category/create", addCategory);
