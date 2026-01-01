@@ -16,7 +16,7 @@ import {
   insertBasedOnCadence,
   getBudgetInformation,
 } from "../utils/functions";
-// import dayjs from "dayjs";
+import dayjs from "dayjs";
 
 export const createBudget = (req: Request, res: Response) => {
   (async () => {
@@ -307,10 +307,8 @@ export const addBudgetForNewYear = () => {
     const count = listOfMonths.length - 1;
     let users: User[];
     let budgetData: Budget[] = [];
-    // const currentYear = dayjs().year();
-    // const newYear = dayjs().add(1, "year").year();
-    const currentYear = 2025;
-    const newYear = 2026;
+    const currentYear = dayjs().year();
+    const newYear = dayjs().add(1, "year").year();
 
     try {
       const userData = await client.query<User>("SELECT * FROM users");
@@ -336,105 +334,68 @@ export const addBudgetForNewYear = () => {
         });
         const highestNumber = Math.max(...budgetIds);
 
-        if (budgetDate.rows.some((item) => item.year === newYear)) {
-          return;
-        }
+        if (!budgetDate.rows.some((item) => item.year === newYear)) {
+          try {
+            const oldBudget = await client.query<Budget>(
+              "SELECT * FROM budget WHERE budget_date_id = $1",
+              [highestNumber],
+            );
 
-        try {
-          const oldBudget = await client.query<Budget>(
-            "SELECT * FROM budget WHERE budget_date_id = $1",
-            [highestNumber],
-          );
+            budgetData = oldBudget.rows;
+          } catch {
+            console.error("Failed to get old budget info");
+          }
 
-          budgetData = oldBudget.rows;
-        } catch {
-          throw new Error("Failed to get old budget info");
-        }
-      } catch {
-        throw new Error("Failed to get old budget dates");
-      }
-
-      for (let i = 0; i <= count; i++) {
-        const insertMonth = listOfMonths[i];
-        const insertYear = newYear;
-        const currentDate = new Date(Date.now()).toISOString();
-        const insert =
-          "INSERT into budget_date(month, year, user_id, modified_at) VALUES ($1, $2, $3, $4) RETURNING id";
-        const values = [insertMonth, insertYear, user.id, currentDate];
-
-        try {
-          const budgetDateId = await client.query(insert, values);
-
-          for (let b = 0; b <= budgetData.length - 1; b++) {
-            const {
-              type,
-              label,
-              amount,
-              paid,
-              frequency,
-              category_id,
-            }: BudgetParam = budgetData[b];
-
-            const budgetInsert =
-              "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, budget_date_id";
-            const budgetValues = [
-              type,
-              label,
-              amount,
-              paid,
-              user.id,
-              budgetDateId.rows[0].id,
-              currentDate,
-              frequency,
-              category_id,
-              currentDate,
-            ];
+          for (let i = 0; i <= count; i++) {
+            const insertMonth = listOfMonths[i];
+            const insertYear = newYear;
+            const currentDate = new Date(Date.now()).toISOString();
+            const insert =
+              "INSERT into budget_date(month, year, user_id, modified_at) VALUES ($1, $2, $3, $4) RETURNING id";
+            const values = [insertMonth, insertYear, user.id, currentDate];
 
             try {
-              await client.query(budgetInsert, budgetValues);
+              const budgetDateId = await client.query(insert, values);
+
+              for (let b = 0; b <= budgetData.length - 1; b++) {
+                const {
+                  type,
+                  label,
+                  amount,
+                  paid,
+                  frequency,
+                  category_id,
+                }: BudgetParam = budgetData[b];
+
+                const budgetInsert =
+                  "INSERT into budget(type, label, amount, paid, user_id, budget_date_id, modified_at, frequency, category_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, budget_date_id";
+                const budgetValues = [
+                  type,
+                  label,
+                  amount,
+                  paid,
+                  user.id,
+                  budgetDateId.rows[0].id,
+                  currentDate,
+                  frequency,
+                  category_id,
+                  currentDate,
+                ];
+
+                try {
+                  await client.query(budgetInsert, budgetValues);
+                } catch {
+                  console.error("Failed to add new budget");
+                }
+              }
             } catch {
-              throw new Error("Failed to add new budget");
+              console.error("Failed to add new budget date");
             }
           }
-        } catch {
-          throw new Error("Failed to add new budget date");
         }
+      } catch {
+        console.error("Failed to get old budget dates");
       }
-    }
-  })();
-};
-
-export const addBudgetForNewYearRequest = (req: Request, res: Response) => {
-  (async () => {
-    const client = instance();
-    const auth_id = req.auth?.payload.sub;
-
-    try {
-      const user_id = await getUserId(auth_id, client);
-
-      if (!user_id) {
-        return res.status(500).json({
-          action: "User doesn't exist",
-        });
-      }
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Get user_id",
-      });
-    }
-
-    try {
-      addBudgetForNewYear();
-
-      return res.status(200).json({
-        success: true,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Add budget for new year",
-      });
     }
   })();
 };
