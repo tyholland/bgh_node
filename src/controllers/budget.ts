@@ -152,7 +152,7 @@ export const updateBudgetItem = (req: Request, res: Response) => {
     // Get all the budgets that match the type and label
     try {
       budgetData = await client.query<Budget>(
-        "SELECT * FROM budget b, budget_date bd WHERE b.type = $1 AND b.label = $2 AND b.budget_date_id = bd.id AND bd.year = $3 ORDER BY b.budget_date_id ASC",
+        "SELECT b.id FROM budget b, budget_date bd WHERE b.type = $1 AND b.label = $2 AND b.budget_date_id = bd.id AND bd.year = $3 ORDER BY b.budget_date_id ASC",
         [budgetInfo.rows[0].type, budgetInfo.rows[0].label, currentYear],
       );
     } catch (err) {
