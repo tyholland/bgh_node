@@ -114,6 +114,7 @@ export const updateBudgetItem = (req: Request, res: Response) => {
     const client = instance();
     const responseBody: BudgetItem = req.body;
     const auth_id = req.auth?.payload.sub;
+    const currentYear = dayjs().year();
     let user_id: number | undefined;
     const update =
       "UPDATE budget SET label = $1, amount = $2, paid = $3, modified_at = $4, frequency = $5, category_id = $6 WHERE id = $7";
@@ -151,8 +152,8 @@ export const updateBudgetItem = (req: Request, res: Response) => {
     // Get all the budgets that match the type and label
     try {
       budgetData = await client.query<Budget>(
-        "SELECT * FROM budget WHERE type = $1 AND label = $2 ORDER BY budget_date_id ASC",
-        [budgetInfo.rows[0].type, budgetInfo.rows[0].label],
+        "SELECT * FROM budget b, budget_date bd WHERE b.type = $1 AND b.label = $2 AND b.budget_date_id = bd.id AND bd.year = $3 ORDER BY b.budget_date_id ASC",
+        [budgetInfo.rows[0].type, budgetInfo.rows[0].label, currentYear],
       );
     } catch (err) {
       return res.status(500).json({

@@ -247,12 +247,13 @@ export const insertBasedOnCadence = async (
     category_id,
   } = responseBody;
   const currentDate = new Date(Date.now()).toISOString();
+  const currentYear = dayjs().year();
   let allMonths;
 
   try {
     allMonths = await client.query(
-      "SELECT id FROM budget_date WHERE user_id = $1",
-      [user_id],
+      "SELECT id FROM budget_date WHERE user_id = $1 AND year = $2",
+      [user_id, currentYear],
     );
   } catch (err) {
     console.error(err);
