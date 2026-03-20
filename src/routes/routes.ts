@@ -23,6 +23,7 @@ import {
   startTrialPlan,
   updateReferralName,
 } from "../controllers/referrals";
+import { heiproEndpoint } from "../controllers/heipro";
 
 export const routes = (app: Express) => {
   // Create User
@@ -81,4 +82,7 @@ export const routes = (app: Express) => {
 
   // Medal Game Start Trial Plan
   app.put("/referral/start", startTrialPlan);
+
+  // Potential Clients
+  app.get("/heipro", heiproEndpoint);
 };
