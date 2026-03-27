@@ -3,23 +3,31 @@ import axios from "axios";
 
 const API_KEY = "AIzaSyDgEtuwmqp4BnpciS5oJH1xnNJHCnv095w";
 
-// Step 1: Get businesses
 const getPlaces = async (query: string, location: string) => {
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json`;
+  const url = `https://places.googleapis.com/v1/places:searchText`;
 
   const retries = 3;
 
   for (let i = 0; i < retries; i++) {
     try {
-      const res = await axios.get(url, {
-        params: {
-          query: `${query} + ${location}`,
-          key: API_KEY,
+      const res = await axios.post(
+        url,
+        {
+          textQuery: `${query} ${location}`,
+          pageSize: 9,
         },
-        timeout: 5000,
-      });
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": API_KEY,
+            "X-Goog-FieldMask":
+              "places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber",
+          },
+          timeout: 5000,
+        },
+      );
 
-      return res.data.results;
+      return res.data.places;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err.response?.status === 504 && i < retries - 1) {
@@ -31,22 +39,6 @@ const getPlaces = async (query: string, location: string) => {
   }
 };
 
-// Step 2: Get details (website, phone)
-const getDetails = async (place_id: string) => {
-  const url = `https://maps.googleapis.com/maps/api/place/details/json`;
-
-  const res = await axios.get(url, {
-    params: {
-      place_id,
-      fields: "name,website,formatted_phone_number",
-      key: API_KEY,
-    },
-  });
-
-  return res.data.result;
-};
-
-// Step 3: Extract email from website
 const extractEmail = async (url: string) => {
   try {
     const res = await axios.get(url, { timeout: 5000 });
@@ -379,16 +371,14 @@ export const heiproEndpoint = (req: Request, res: Response) => {
       const results = [];
 
       for (const place of places) {
-        const details = await getDetails(place.place_id);
-
-        if (details.website) {
-          const analysis = await analyzeWebsite(details.website);
-          const email = await extractEmail(details.website);
+        if (place.websiteUri) {
+          const analysis = await analyzeWebsite(place.websiteUri);
+          const email = await extractEmail(place.websiteUri);
 
           results.push({
-            name: details.name,
-            website: details.website,
-            phone: details.formatted_phone_number || "N/A",
+            name: place.displayName.text,
+            website: place.websiteUri,
+            phone: place.nationalPhoneNumber || "N/A",
             email: email || "N/A",
             score: analysis.score,
             issues: analysis.issues,
