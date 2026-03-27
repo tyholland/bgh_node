@@ -7,14 +7,28 @@ const API_KEY = "AIzaSyDgEtuwmqp4BnpciS5oJH1xnNJHCnv095w";
 const getPlaces = async (query: string, location: string) => {
   const url = `https://maps.googleapis.com/maps/api/place/textsearch/json`;
 
-  const res = await axios.get(url, {
-    params: {
-      query: `${query} + ${location}`,
-      key: API_KEY,
-    },
-  });
+  const retries = 3;
 
-  return res.data.results;
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await axios.get(url, {
+        params: {
+          query: `${query} + ${location}`,
+          key: API_KEY,
+        },
+        timeout: 5000,
+      });
+
+      return res.data.results;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      if (err.response?.status === 504 && i < retries - 1) {
+        await new Promise((r) => setTimeout(r, 2000));
+      } else {
+        return null;
+      }
+    }
+  }
 };
 
 // Step 2: Get details (website, phone)
