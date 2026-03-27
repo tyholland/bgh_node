@@ -39,21 +39,15 @@ const getPlaces = async (query: string, location: string) => {
   }
 };
 
-const extractEmail = async (url: string) => {
-  try {
-    const res = await axios.get(url, { timeout: 5000 });
-    const html = res.data;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const extractEmail = (html: any) => {
+  const emailRegex =
+    /(?!\S*\.(?:jpg|png|gif|bmp|svg)(?:[\s\n\r]|$))[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
-    const emailRegex =
-      /(?!\S*\.(?:jpg|png|gif|bmp|svg)(?:[\s\n\r]|$))[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+  const emails = html.match(emailRegex);
+  const uniqueEmails = [...new Set(emails)];
 
-    const emails = html.match(emailRegex);
-    const uniqueEmails = [...new Set(emails)];
-
-    return uniqueEmails ? uniqueEmails.join(", ") : null;
-  } catch {
-    return null;
-  }
+  return uniqueEmails ? uniqueEmails.join(", ") : null;
 };
 
 const detectTechStack = (html: string) => {
@@ -316,43 +310,36 @@ const detectSocialMedia = (lowerHTML: string, score: number) => {
   };
 };
 
-// Step 4: Analyze website
-const analyzeWebsite = async (url: string) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const analyzeWebsite = (url: string, html: any) => {
   let score = 100;
   const issues: string[] = [];
   const services: string[] = [];
   let tech: string = "";
 
-  try {
-    const res = await axios.get(url, { timeout: 5000 });
-    const html = res.data;
-    const lowerHTML = html.toLowerCase();
+  const lowerHTML = html.toLowerCase();
 
-    tech = detectTechStack(lowerHTML);
+  tech = detectTechStack(lowerHTML);
 
-    const seo = detectSEO(lowerHTML, score);
-    score = seo.score;
-    issues.push(...seo.issues);
-    services.push(...seo.services);
+  const seo = detectSEO(lowerHTML, score);
+  score = seo.score;
+  issues.push(...seo.issues);
+  services.push(...seo.services);
 
-    const web = detectWebsite(lowerHTML, html, url, score);
-    score = web.score;
-    issues.push(...web.issues);
-    services.push(...web.services);
+  const web = detectWebsite(lowerHTML, html, url, score);
+  score = web.score;
+  issues.push(...web.issues);
+  services.push(...web.services);
 
-    const social = detectSocialMedia(lowerHTML, score);
-    score = social.score;
-    issues.push(...social.issues);
-    services.push(...social.services);
+  const social = detectSocialMedia(lowerHTML, score);
+  score = social.score;
+  issues.push(...social.issues);
+  services.push(...social.services);
 
-    const funnel = detectEmailMarketing(lowerHTML, score);
-    score = funnel.score;
-    issues.push(...funnel.issues);
-    services.push(...funnel.services);
-  } catch {
-    issues.push("Tool could not search site");
-    services.push("N/A");
-  }
+  const funnel = detectEmailMarketing(lowerHTML, score);
+  score = funnel.score;
+  issues.push(...funnel.issues);
+  services.push(...funnel.services);
 
   return {
     score: Math.max(score, 0),
@@ -372,19 +359,33 @@ export const heiproEndpoint = (req: Request, res: Response) => {
 
       for (const place of places) {
         if (place.websiteUri) {
-          const analysis = await analyzeWebsite(place.websiteUri);
-          const email = await extractEmail(place.websiteUri);
+          try {
+            const res = await axios.get(place.websiteUri, { timeout: 5000 });
+            const analysis = analyzeWebsite(place.websiteUri, res.data);
+            const email = extractEmail(res.data);
 
-          results.push({
-            name: place.displayName.text,
-            website: place.websiteUri,
-            phone: place.nationalPhoneNumber || "N/A",
-            email: email || "N/A",
-            score: analysis.score,
-            issues: analysis.issues,
-            services: analysis.services,
-            tech: analysis.tech,
-          });
+            results.push({
+              name: place.displayName.text,
+              website: place.websiteUri,
+              phone: place.nationalPhoneNumber || "N/A",
+              email: email || "N/A",
+              score: analysis.score,
+              issues: analysis.issues,
+              services: analysis.services,
+              tech: analysis.tech,
+            });
+          } catch {
+            results.push({
+              name: place.displayName.text,
+              website: place.websiteUri,
+              phone: place.nationalPhoneNumber || "N/A",
+              email: "N/A",
+              score: 100,
+              issues: "Tool could not search site",
+              services: "N/A",
+              tech: "N/A",
+            });
+          }
         }
       }
 
