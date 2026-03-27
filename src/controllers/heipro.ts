@@ -14,7 +14,7 @@ const getPlaces = async (query: string, location: string) => {
         url,
         {
           textQuery: `${query} ${location}`,
-          pageSize: 9,
+          pageSize: 18,
         },
         {
           headers: {
@@ -359,33 +359,11 @@ export const heiproEndpoint = (req: Request, res: Response) => {
 
       for (const place of places) {
         if (place.websiteUri) {
-          try {
-            const res = await axios.get(place.websiteUri, { timeout: 5000 });
-            const analysis = analyzeWebsite(place.websiteUri, res.data);
-            const email = extractEmail(res.data);
-
-            results.push({
-              name: place.displayName.text,
-              website: place.websiteUri,
-              phone: place.nationalPhoneNumber || "N/A",
-              email: email || "N/A",
-              score: analysis.score,
-              issues: analysis.issues,
-              services: analysis.services,
-              tech: analysis.tech,
-            });
-          } catch {
-            results.push({
-              name: place.displayName.text,
-              website: place.websiteUri,
-              phone: place.nationalPhoneNumber || "N/A",
-              email: "N/A",
-              score: 100,
-              issues: "Tool could not search site",
-              services: "N/A",
-              tech: "N/A",
-            });
-          }
+          results.push({
+            name: place.displayName.text,
+            website: place.websiteUri,
+            phone: place.nationalPhoneNumber || "N/A",
+          });
         }
       }
 
@@ -396,5 +374,38 @@ export const heiproEndpoint = (req: Request, res: Response) => {
         action: "Heipro endpoint",
       });
     }
+  })();
+};
+
+export const heiproDetailsEndpoint = (req: Request, res: Response) => {
+  (async () => {
+    const { url } = req.query;
+
+    const results = [];
+    const urlString = url as string;
+
+    try {
+      const res = await axios.get(urlString, { timeout: 5000 });
+      const analysis = analyzeWebsite(urlString, res.data);
+      const email = extractEmail(res.data);
+
+      results.push({
+        email: email || "N/A",
+        score: analysis.score,
+        issues: analysis.issues,
+        services: analysis.services,
+        tech: analysis.tech,
+      });
+    } catch {
+      results.push({
+        email: "N/A",
+        score: 100,
+        issues: "Tool could not search site",
+        services: "N/A",
+        tech: "N/A",
+      });
+    }
+
+    res.status(200).json(results[0]);
   })();
 };

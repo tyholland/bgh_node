@@ -1,9 +1,9 @@
 import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
-import { routes } from "./routes/routes";
-import { auth } from "express-oauth2-jwt-bearer";
+import { privateRoutes } from "./routes/privateRoutes";
 import cors from "cors";
 import { budgetNewYear } from "./utils/cronJobs";
+import { publicRoutes } from "./routes/publicRoutes";
 
 dotenv.config();
 
@@ -17,18 +17,13 @@ app.use(
   }),
 );
 app.use(express.json());
-app.use(
-  auth({
-    audience: process.env.AUTH0_AUDIENCE,
-    issuerBaseURL: process.env.AUTH0_BASE_URL,
-  }),
-);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Simple Budgeting API");
 });
 
-routes(app);
+publicRoutes(app);
+privateRoutes(app);
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);
