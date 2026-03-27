@@ -39,13 +39,39 @@ const getPlaces = async (query: string, location: string) => {
   }
 };
 
+const isRealEmail = (str: string) => {
+  if (!str) return false;
+
+  const cleaned = str.trim().toLowerCase();
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(cleaned)) return false;
+
+  // ❌ Reject if looks like a file
+  if (/\.(png|jpg|jpeg|gif|svg|webp|css|js|ico|pdf|mp4|mov)$/i.test(cleaned)) {
+    return false;
+  }
+
+  // ❌ Reject URLs
+  if (cleaned.includes("http") || cleaned.includes("www.")) {
+    return false;
+  }
+
+  // ❌ Reject query strings
+  if (cleaned.includes("?") || cleaned.includes("&")) {
+    return false;
+  }
+
+  return true;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const extractEmail = (html: any) => {
-  const emailRegex =
-    /(?!\S*\.(?:jpg|png|gif|bmp|svg)(?:[\s\n\r]|$))[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+  const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
   const emails = html.match(emailRegex);
-  const uniqueEmails = [...new Set(emails)];
+  const cleanedEmails = emails.filter(isRealEmail);
+  const uniqueEmails = [...new Set(cleanedEmails)];
 
   return uniqueEmails ? uniqueEmails.join(", ") : null;
 };
