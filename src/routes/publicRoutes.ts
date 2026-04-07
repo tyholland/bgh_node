@@ -1,5 +1,9 @@
 import { Express } from "express";
-import { heiproDetailsEndpoint, heiproEndpoint } from "../controllers/heipro";
+import {
+  heiproDetailsEndpoint,
+  heiproEndpoint,
+  heiproMultiDetailsEndpoint,
+} from "../controllers/heipro";
 
 export const publicRoutes = (app: Express) => {
   // Potential Clients
@@ -7,4 +11,7 @@ export const publicRoutes = (app: Express) => {
 
   // Clients Details
   app.get("/heipro/details", heiproDetailsEndpoint);
+
+  // Multiple Clients Details
+  app.post("/heipro/multi", heiproMultiDetailsEndpoint);
 };

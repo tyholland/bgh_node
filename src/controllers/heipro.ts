@@ -435,3 +435,55 @@ export const heiproDetailsEndpoint = (req: Request, res: Response) => {
     res.status(200).json(results[0]);
   })();
 };
+
+export const heiproMultiDetailsEndpoint = (req: Request, res: Response) => {
+  (async () => {
+    const { urlArr } = req.body;
+
+    const arrUrl = urlArr as string[];
+
+    const results = await arrUrl.map(async (item) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const singleResult: any[] = [];
+
+      try {
+        const res = await axios.get(item, { timeout: 5000 });
+
+        const analysis = analyzeWebsite(item, res.data);
+        const email = extractEmail(res.data);
+
+        singleResult.push({
+          email: email || "N/A",
+          score: analysis.score,
+          issues: analysis.issues,
+          services: analysis.services,
+          tech: analysis.tech,
+          url: item,
+        });
+
+        return singleResult;
+      } catch {
+        console.warn("ignore this message");
+      }
+    });
+
+    const awaitedResults = await Promise.all(results);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any[] = [];
+
+    awaitedResults.forEach((item) => {
+      if (!item) {
+        return;
+      }
+
+      data.push(...item);
+    });
+
+    const uniqueResults = [
+      ...new Map(data.map((item) => [item.email, item])).values(),
+    ];
+
+    res.status(200).json(uniqueResults);
+  })();
+};
