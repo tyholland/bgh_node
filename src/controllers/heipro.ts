@@ -62,6 +62,22 @@ const isRealEmail = (str: string) => {
     return false;
   }
 
+  // ❌ Reject certain emails
+  if (
+    cleaned.includes("@domain.com") ||
+    cleaned.includes("@sentry-next.wixpress.com") ||
+    cleaned.includes("@example.com") ||
+    cleaned.includes("@email.com") ||
+    cleaned.includes("@address.com") ||
+    cleaned.includes("example@") ||
+    cleaned.includes("@latofonts.com") ||
+    cleaned.includes("@sentry.wixpress.com") ||
+    cleaned.includes("ingest.sentry.io") ||
+    cleaned.includes("@sentry.io")
+  ) {
+    return false;
+  }
+
   return true;
 };
 
