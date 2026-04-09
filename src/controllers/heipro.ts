@@ -14,7 +14,7 @@ const getPlaces = async (query: string, location: string) => {
         url,
         {
           textQuery: `${query} ${location}`,
-          pageSize: 18,
+          pageSize: 30,
         },
         {
           headers: {
