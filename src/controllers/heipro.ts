@@ -70,6 +70,7 @@ const isRealEmail = (str: string) => {
     cleaned.includes("@email.com") ||
     cleaned.includes("@address.com") ||
     cleaned.includes("example@") ||
+    cleaned.includes("email@") ||
     cleaned.includes("@latofonts.com") ||
     cleaned.includes("@sentry.wixpress.com") ||
     cleaned.includes("ingest.sentry.io") ||
@@ -87,7 +88,7 @@ const extractEmail = (html: any) => {
 
   const emails = html.match(emailRegex);
   const cleanedEmails = emails.filter(isRealEmail);
-  const uniqueEmails = [...new Set(cleanedEmails)];
+  const uniqueEmails = [...new Set(cleanedEmails.toLowerCase())];
 
   return uniqueEmails ? uniqueEmails.join(", ") : null;
 };
