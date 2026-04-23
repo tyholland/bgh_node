@@ -74,6 +74,8 @@ const isRealEmail = (str: string) => {
     cleaned.includes("@latofonts.com") ||
     cleaned.includes("@sentry.wixpress.com") ||
     cleaned.includes("ingest.sentry.io") ||
+    cleaned.includes("name@") ||
+    cleaned.includes("company.com") ||
     cleaned.includes("@sentry.io")
   ) {
     return false;
@@ -88,7 +90,11 @@ const extractEmail = (html: any) => {
 
   const emails = html.match(emailRegex);
   const cleanedEmails = emails.filter(isRealEmail);
-  const uniqueEmails = [...new Set(cleanedEmails.toLowerCase())];
+  const lowerCaseEmails: string[] = [];
+  cleanedEmails.filter((email: string) =>
+    lowerCaseEmails.push(email.trim().toLowerCase()),
+  );
+  const uniqueEmails = [...new Set(lowerCaseEmails)];
 
   return uniqueEmails ? uniqueEmails.join(", ") : null;
 };
@@ -469,14 +475,16 @@ export const heiproMultiDetailsEndpoint = (req: Request, res: Response) => {
         const analysis = analyzeWebsite(item, res.data);
         const email = extractEmail(res.data);
 
-        singleResult.push({
-          email: email || "N/A",
-          score: analysis.score,
-          issues: analysis.issues,
-          services: analysis.services,
-          tech: analysis.tech,
-          url: item,
-        });
+        if (email) {
+          singleResult.push({
+            email: email,
+            score: analysis.score,
+            issues: analysis.issues,
+            services: analysis.services,
+            tech: analysis.tech,
+            url: item,
+          });
+        }
 
         return singleResult;
       } catch {
