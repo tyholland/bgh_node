@@ -82,6 +82,7 @@ const isRealEmail = (str: string) => {
     cleaned.includes("%") ||
     cleaned.includes("@test.com") ||
     cleaned.includes("@mysite.com") ||
+    cleaned.includes("@website.com") ||
     cleaned.includes("@sentry.io")
   ) {
     return false;
