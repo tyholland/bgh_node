@@ -92,7 +92,7 @@ const isRealEmail = (str: string) => {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const extractEmail = (html: any) => {
+const extractEmail = (html: any, multi: boolean = false) => {
   const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
   const emails = html.match(emailRegex);
@@ -103,7 +103,7 @@ const extractEmail = (html: any) => {
   );
   const uniqueEmails = [...new Set(lowerCaseEmails)];
 
-  return uniqueEmails ? uniqueEmails.join(", ") : null;
+  return uniqueEmails ? (multi ? uniqueEmails : uniqueEmails.join(", ")) : null;
 };
 
 const detectTechStack = (html: string) => {
@@ -480,16 +480,20 @@ export const heiproMultiDetailsEndpoint = (req: Request, res: Response) => {
         const res = await axios.get(item, { timeout: 5000 });
 
         const analysis = analyzeWebsite(item, res.data);
-        const email = extractEmail(res.data);
+        const email: string[] | null = extractEmail(res.data, true) as
+          | string[]
+          | null;
 
-        if (email) {
-          singleResult.push({
-            email: email,
-            score: analysis.score,
-            issues: analysis.issues,
-            services: analysis.services,
-            tech: analysis.tech,
-            url: item,
+        if (email && email.length > 0) {
+          email.forEach((emailString: string) => {
+            singleResult.push({
+              email: emailString,
+              score: analysis.score,
+              issues: analysis.issues,
+              services: analysis.services,
+              tech: analysis.tech,
+              url: item,
+            });
           });
         }
 
