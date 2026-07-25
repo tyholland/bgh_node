@@ -1,15 +1,11 @@
 import { Request, Response } from "express";
 import { instance } from "../utils/postgres";
 import { Budget, User } from "../utils/types";
-import { ManagementClient } from "auth0";
 import {
   addCategories,
-  cancelPaypalSubscription,
   checkConnectAccountExists,
   checkForExistingUser,
   getMedalGameData,
-  getUserByEmail,
-  getUserId,
   handleReferrals,
   removeSubscriptionAfterTrial,
 } from "../utils/functions";
@@ -174,182 +170,6 @@ export const createUser = (req: Request, res: Response) => {
   })();
 };
 
-export const deleteUser = (req: Request, res: Response) => {
-  (async () => {
-    const client = instance();
-    const auth_id = req.auth?.payload.sub;
-    const currentDate = new Date(Date.now()).toISOString();
-    const update =
-      "UPDATE users SET active = $1, modified_at = $2 WHERE auth_id = $3";
-    const values = [false, currentDate, auth_id];
-
-    try {
-      const user = await checkForExistingUser(auth_id, client);
-
-      if (
-        user.exists &&
-        (user.subscription_id === 3 || user.subscription_id === 4)
-      ) {
-        return res.status(500).json({
-          success: false,
-          action:
-            "You need to cancel your subscription before deleting account",
-        });
-      }
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        success: false,
-        action: "Failed to get user_id and check subscription",
-      });
-    }
-
-    try {
-      const management = new ManagementClient({
-        clientId: `${process.env.AUTH0_CLIENT_ID}`,
-        clientSecret: `${process.env.AUTH0_CLIENT_SECRET}`,
-        domain: `${process.env.AUTH0_DOMAIN}`,
-        audience: process.env.AUTH0_AUDIENCE,
-      });
-
-      await management.users.delete({
-        id: `${auth_id}`,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        success: false,
-        action: "Failed to delete auth0 user",
-      });
-    }
-
-    try {
-      await client.query(update, values);
-
-      return res.status(200).json({
-        success: true,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        success: false,
-        action: "Delete user",
-      });
-    }
-  })();
-};
-
-export const shareAccount = (req: Request, res: Response) => {
-  (async () => {
-    const client = instance();
-    const { email } = req.body;
-    const auth_id = req.auth?.payload.sub;
-    const currentDate = new Date(Date.now()).toISOString();
-    let allowed_user;
-    let user_id;
-
-    try {
-      user_id = await getUserId(auth_id, client);
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Get user_id",
-      });
-    }
-
-    try {
-      allowed_user = await getUserByEmail(email as string, client);
-
-      if (!allowed_user.exists) {
-        return res.status(500).json({
-          action: "User doesn't exist",
-        });
-      }
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Get user info from email",
-      });
-    }
-
-    const insert =
-      "INSERT into connected_accounts(main_account, allowed_account, is_connected, modified_at) VALUES ($1, $2, $3, $4)";
-    const values = [user_id, allowed_user.id, false, currentDate];
-
-    try {
-      await client.query(insert, values);
-
-      return res.status(200).json({
-        success: true,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Insert values for an connected account",
-      });
-    }
-  })();
-};
-
-export const connectedAccountDecision = (req: Request, res: Response) => {
-  (async () => {
-    const client = instance();
-    const { decision, connected_id } = req.body;
-    const currentDate = new Date(Date.now()).toISOString();
-    const update =
-      "UPDATE connected_accounts SET is_connected = $1, modified_at = $2 WHERE id = $3";
-    const values = [decision, currentDate, connected_id];
-
-    try {
-      await client.query(update, values);
-
-      return res.status(200).json({
-        success: true,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Update values for an connected account",
-      });
-    }
-  })();
-};
-
-export const removeSharedAccount = (req: Request, res: Response) => {
-  (async () => {
-    const client = instance();
-    const auth_id = req.auth?.payload.sub;
-    const currentDate = new Date(Date.now()).toISOString();
-    let user_id;
-
-    try {
-      user_id = await getUserId(auth_id, client);
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Get user_id",
-      });
-    }
-
-    const update =
-      "UPDATE connected_accounts SET is_connected = $1, modified_at = $2 WHERE allowed_account = $3 OR main_account = $4";
-    const values = [false, currentDate, user_id, user_id];
-
-    try {
-      await client.query(update, values);
-
-      return res.status(200).json({
-        success: true,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Update 'is_connected' for an connected account",
-      });
-    }
-  })();
-};
-
 export const updateUserSub = (req: Request, res: Response) => {
   (async () => {
     const client = instance();
@@ -387,62 +207,37 @@ export const updateUserSub = (req: Request, res: Response) => {
   })();
 };
 
-export const cancelUserSub = (req: Request, res: Response) => {
-  (async () => {
-    const client = instance();
-    const { paypal_sub } = req.body;
-    const auth_id = req.auth?.payload.sub;
-    const currentDate = new Date(Date.now()).toISOString();
+// export const cancelUserSub = (req: Request, res: Response) => {
+//   (async () => {
+//     const client = instance();
+//     const { paypal_sub } = req.body;
+//     const auth_id = req.auth?.payload.sub;
+//     const currentDate = new Date(Date.now()).toISOString();
 
-    try {
-      await cancelPaypalSubscription(res, paypal_sub);
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Failed to cancel paypal subscription function",
-      });
-    }
+//     try {
+//       await cancelPaypalSubscription(res, paypal_sub);
+//     } catch (err) {
+//       return res.status(500).json({
+//         err,
+//         action: "Failed to cancel paypal subscription function",
+//       });
+//     }
 
-    const update =
-      "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4, paypal_sub_id = $5 WHERE auth_id = $6";
-    const values = [2, false, currentDate, currentDate, null, auth_id];
+//     const update =
+//       "UPDATE users SET subscription_id = $1, paid_sub = $2, modified_at = $3, subscribed_at = $4, paypal_sub_id = $5 WHERE auth_id = $6";
+//     const values = [2, false, currentDate, currentDate, null, auth_id];
 
-    try {
-      await client.query(update, values);
+//     try {
+//       await client.query(update, values);
 
-      return res.status(200).json({
-        success: true,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Cancel user sub",
-      });
-    }
-  })();
-};
-
-export const changeCurrency = (req: Request, res: Response) => {
-  (async () => {
-    const client = instance();
-    const { currency } = req.body;
-    const auth_id = req.auth?.payload.sub;
-    const currentDate = new Date(Date.now()).toISOString();
-    const update =
-      "UPDATE users SET currency = $1, modified_at = $2 WHERE auth_id = $3";
-    const values = [currency, currentDate, auth_id];
-
-    try {
-      await client.query(update, values);
-
-      return res.status(200).json({
-        success: true,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        err,
-        action: "Update user currency",
-      });
-    }
-  })();
-};
+//       return res.status(200).json({
+//         success: true,
+//       });
+//     } catch (err) {
+//       return res.status(500).json({
+//         err,
+//         action: "Cancel user sub",
+//       });
+//     }
+//   })();
+// };
