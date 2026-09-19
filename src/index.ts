@@ -9,6 +9,7 @@ import { jobsRoutes } from "./routes/jobs";
 import { statusRoutes } from "./routes/status";
 import { ingestRoutes } from "./routes/ingest";
 import { contactRoutes } from "./routes/contact";
+import { usersRoutes } from "./routes/users";
 import { runIngest } from "./ingest/run";
 
 const app: Express = express();
@@ -28,6 +29,7 @@ jobsRoutes(app);
 statusRoutes(app);
 ingestRoutes(app);
 contactRoutes(app);
+usersRoutes(app);
 
 const start = async () => {
   const pool = instance();

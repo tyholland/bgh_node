@@ -40,6 +40,8 @@ const envSchema = z.object({
     .default("ty@heiprodigital.com,cpbeganski@gmail.com,ben@greenefamily.us"),
   TURNSTILE_SECRET: z.string().optional(),
 
+  FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
+
   CRAWL_CONCURRENCY: numberFromString(6),
   CRAWL_TIMEOUT_MS: numberFromString(10000),
   CRAWL_USER_AGENT: z

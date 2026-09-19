@@ -64,3 +64,23 @@ export interface IngestRun {
   rows_failed: number | null;
   error: string | null;
 }
+
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  phoneNumber: string | null;
+  photoURL: string | null;
+  providerId: string;
+}
+
+export interface UserRecord {
+  uid: string;
+  email: string | null;
+  display_name: string | null;
+  phone_number: string | null;
+  photo_url: string | null;
+  provider_id: string;
+  created_at: string;
+  updated_at: string;
+}

@@ -29,13 +29,15 @@ everything in `src/db/migrations/`).
 
 ## API
 
-| Route              | Description                                                                           |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| `GET /health`      | Liveness check.                                                                       |
-| `GET /v1/jobs`     | Full enriched job snapshot. Cached (`s-maxage=900`) with `ETag` support.              |
-| `GET /v1/status`   | Last ingest run summary + next scheduled run.                                         |
-| `POST /v1/ingest`  | Trigger a fresh ingest run. Requires `Authorization: Bearer <INGEST_TRIGGER_SECRET>`. |
-| `POST /v1/contact` | Feedback / company-request form. Rate-limited to 5/hour per IP.                       |
+| Route                  | Description                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `GET /health`          | Liveness check.                                                                                                     |
+| `GET /v1/jobs`         | Full enriched job snapshot. Cached (`s-maxage=900`) with `ETag` support.                                            |
+| `GET /v1/status`       | Last ingest run summary + next scheduled run.                                                                       |
+| `POST /v1/ingest`      | Trigger a fresh ingest run. Requires `Authorization: Bearer <INGEST_TRIGGER_SECRET>`.                               |
+| `POST /v1/contact`     | Feedback / company-request form. Rate-limited to 5/hour per IP.                                                     |
+| `POST /v1/users`       | Create/sync a user profile after Firebase sign-up. Requires a Firebase ID token whose `uid` matches the body.       |
+| `PATCH /v1/users/:uid` | Sync profile edits. Requires a Firebase ID token whose `uid` matches the path/body; `404` if no profile exists yet. |
 
 A scheduled ingest also runs in-process via `node-cron` on `INGEST_CRON`
 (default `0 3,9,15,21 * * *`, America/New_York) — the host does not need its
@@ -52,3 +54,7 @@ See `.env.example`. Notably:
   `SENDER_EMAIL`) instead of new `MAIL_*` vars.
 - `CONTACT_RECIPIENTS` is read server-side only — never taken from the request
   body.
+- `POST /v1/users` and `PATCH /v1/users/:uid` verify a Firebase ID token via
+  `firebase-admin`, configured with `FIREBASE_SERVICE_ACCOUNT` (the service
+  account JSON, as a single-line string). Both routes reject the request if
+  the token's `uid` doesn't match the profile being written.
