@@ -129,7 +129,6 @@ export const checkForExistingUser = async (
 
   return {
     exists: user.rowCount ? user.rowCount > 0 : false,
-    ...user.rows[0],
   };
 };
 

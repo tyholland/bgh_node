@@ -1,5 +1,5 @@
 import { Express } from "express";
-import { createUser } from "../controllers/user";
+import { createUser, updateUser } from "../controllers/user";
 import { auth } from "express-oauth2-jwt-bearer";
 
 const requireAuth = auth({
@@ -12,7 +12,7 @@ export const privateRoutes = (app: Express) => {
   app.post("/user/create", requireAuth, createUser);
 
   // Update & Delete User
-  app.put("/user/update", requireAuth, createUser);
+  app.put("/user/update", requireAuth, updateUser);
 
   // Create Saved Search
   app.post("/saved-search/create", requireAuth, createUser);
