@@ -1,36 +1,50 @@
 {
-  "name": "budget_node",
+  "name": "bgh-scout-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "Ingests the BGH Scout job-listing CSV, enriches each job with crawled JobPosting details, and serves the snapshot to the frontend.",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "build": "npx tsc",
-    "start": "node dist/index.js",
+    "build": "npx tsc && mkdir -p dist/db/migrations && cp src/db/migrations/*.sql dist/db/migrations/",
+    "start": "node -r dotenv/config dist/index.js",
     "dev": "nodemon -r dotenv/config src/index.ts",
+    "ingest": "ts-node -r dotenv/config scripts/ingest-once.ts",
+    "test": "vitest run",
     "prepare": "husky"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "auth0": "^4.20.0",
-    "axios": "^1.13.6",
+    "cheerio": "^1.0.0",
     "cors": "^2.8.5",
+    "cron-parser": "^4.9.0",
     "dayjs": "^1.11.18",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "express-oauth2-jwt-bearer": "^1.6.1",
+    "express-rate-limit": "^7.5.0",
+    "he": "^1.2.0",
     "husky": "^9.1.7",
     "node-cron": "^4.2.1",
-    "node-fetch": "^3.3.2",
-    "pg": "^8.14.1"
+    "nodemailer": "^6.10.0",
+    "p-limit": "^3.1.0",
+    "papaparse": "^5.4.1",
+    "pg": "^8.14.1",
+    "sanitize-html": "^2.14.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
+    "@types/he": "^1.2.3",
     "@types/node": "^22.13.10",
+    "@types/nodemailer": "^6.4.17",
+    "@types/papaparse": "^5.3.15",
     "@types/pg": "^8.11.11",
+    "@types/sanitize-html": "^2.13.0",
     "concurrently": "^9.1.2",
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^10.1.1",
@@ -40,7 +54,8 @@
     "prettier": "3.5.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.27.0"
+    "typescript-eslint": "^8.27.0",
+    "vitest": "^3.0.8"
   },
   "eslintConfig": {
     "extends": [

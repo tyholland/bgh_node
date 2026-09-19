@@ -1,0 +1,77 @@
+import pLimit from "p-limit";
+import { instance } from "../db/client";
+import {
+  selectRowsToEnrich,
+  upsertJob,
+  writeJobDetails,
+} from "../db/jobs.repo";
+import { finishRun, startRun } from "../db/runs.repo";
+import { env } from "../lib/env";
+import { logger } from "../lib/logger";
+import { fetchAndNormalizeCsv } from "./csv";
+import { enrichJob } from "./enrich";
+import { revalidateFrontend } from "./revalidate";
+
+export const runIngest = async () => {
+  const pool = instance();
+  const run = await startRun(pool);
+
+  logger.info(`Starting ingest run ${run.id}`);
+
+  let rowsIn = 0;
+  let rowsEnriched = 0;
+  let rowsFailed = 0;
+
+  try {
+    const rows = await fetchAndNormalizeCsv();
+    rowsIn = rows.length;
+
+    for (const row of rows) {
+      await upsertJob(pool, row, run.started_at);
+    }
+
+    const toEnrich = await selectRowsToEnrich(pool);
+    const limit = pLimit(env.CRAWL_CONCURRENCY);
+
+    await Promise.all(
+      toEnrich.map((job) =>
+        limit(async () => {
+          const { status, details } = await enrichJob(job.link);
+
+          await writeJobDetails(pool, job.link, status, details);
+
+          if (status === "ok") {
+            rowsEnriched += 1;
+          } else if (status === "failed") {
+            rowsFailed += 1;
+          }
+        }),
+      ),
+    );
+
+    await finishRun(pool, run.id, {
+      ok: true,
+      rowsIn,
+      rowsEnriched,
+      rowsFailed,
+    });
+
+    logger.info(
+      `Finished ingest run ${run.id}: ${rowsIn} rows, ${rowsEnriched} enriched, ${rowsFailed} failed`,
+    );
+
+    await revalidateFrontend();
+  } catch (err) {
+    logger.error(`Ingest run ${run.id} failed`, err);
+
+    await finishRun(pool, run.id, {
+      ok: false,
+      rowsIn,
+      rowsEnriched,
+      rowsFailed,
+      error: err instanceof Error ? err.message : String(err),
+    });
+
+    throw err;
+  }
+};
