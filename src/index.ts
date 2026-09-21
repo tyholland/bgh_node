@@ -10,6 +10,7 @@ import { statusRoutes } from "./routes/status";
 import { ingestRoutes } from "./routes/ingest";
 import { contactRoutes } from "./routes/contact";
 import { usersRoutes } from "./routes/users";
+import { savedSearchesRoutes } from "./routes/savedSearches";
 import { runIngest } from "./ingest/run";
 
 const app: Express = express();
@@ -30,6 +31,7 @@ statusRoutes(app);
 ingestRoutes(app);
 contactRoutes(app);
 usersRoutes(app);
+savedSearchesRoutes(app);
 
 const start = async () => {
   const pool = instance();

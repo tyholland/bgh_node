@@ -84,3 +84,21 @@ export interface UserRecord {
   created_at: string;
   updated_at: string;
 }
+
+export interface UrlParams {
+  search?: string;
+  company?: string;
+  date?: string;
+  exact?: string;
+  keyword?: string;
+  industry?: string;
+  sort?: string;
+}
+
+export interface SavedSearchRecord {
+  id: string;
+  uid: string;
+  name: string | null;
+  params: UrlParams;
+  created_at: string;
+}
