@@ -6,7 +6,7 @@ export const upsertUser = async (
   profile: UserProfile,
 ): Promise<UserRecord> => {
   const result = await pool.query<UserRecord>(
-    `INSERT INTO users (uid, email, display_name, phone_number, photo_url, provider_id, updated_at)
+    `INSERT INTO users_bgh (uid, email, display_name, phone_number, photo_url, provider_id, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, now())
      ON CONFLICT (uid) DO UPDATE SET
        email = EXCLUDED.email,
@@ -34,7 +34,7 @@ export const getUserByUid = async (
   uid: string,
 ): Promise<UserRecord | null> => {
   const result = await pool.query<UserRecord>(
-    `SELECT * FROM users WHERE uid = $1`,
+    `SELECT * FROM users_bgh WHERE uid = $1`,
     [uid],
   );
 

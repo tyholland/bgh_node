@@ -1,4 +1,4 @@
-create table if not exists users (
+create table if not exists users_bgh (
   uid           text primary key,
   email         text,
   display_name  text,
