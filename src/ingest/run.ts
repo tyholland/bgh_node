@@ -1,6 +1,7 @@
 import pLimit from "p-limit";
 import { instance } from "../db/client";
 import {
+  clearJobs,
   selectRowsToEnrich,
   upsertJob,
   writeJobDetails,
@@ -12,7 +13,7 @@ import { fetchAndNormalizeCsv } from "./csv";
 import { enrichJob } from "./enrich";
 import { revalidateFrontend } from "./revalidate";
 
-export const runIngest = async () => {
+export const runIngest = async (clearOldJobs = true) => {
   const pool = instance();
   const run = await startRun(pool);
 
@@ -25,6 +26,10 @@ export const runIngest = async () => {
   try {
     const rows = await fetchAndNormalizeCsv();
     rowsIn = rows.length;
+
+    if (clearOldJobs) {
+      await clearJobs(pool);
+    }
 
     for (const row of rows) {
       await upsertJob(pool, row, run.started_at);

@@ -42,10 +42,21 @@ const start = async () => {
     logger.info(`Server is running at http://localhost:${env.PORT}`);
   });
 
+  const CLEAR_JOBS_HOURS = [0, 3];
+
   cron.schedule(
     env.INGEST_CRON,
     () => {
-      runIngest().catch((err) =>
+      const hour = Number(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          hour: "numeric",
+          hourCycle: "h23",
+        }).format(new Date()),
+      );
+      const clearOldJobs = CLEAR_JOBS_HOURS.includes(hour);
+
+      runIngest(clearOldJobs).catch((err) =>
         logger.error("Scheduled ingest run failed", err),
       );
     },

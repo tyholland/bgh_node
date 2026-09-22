@@ -28,11 +28,12 @@ const getJobsHandler = async (req: Request, res: Response) => {
     ? await selectAllCurrentJobs(pool, lastRun.started_at)
     : await selectAllJobs(pool);
 
-  const jobs = records.map(toJobRow);
   const enriched = records.filter((r) => r.details_status === "ok").length;
   const enrichFailed = records.filter(
     (r) => r.details_status === "failed",
   ).length;
+
+  const jobs = records.filter((r) => r.details_status === "ok").map(toJobRow);
 
   const body: JobsResponse = {
     meta: {

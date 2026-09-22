@@ -3,6 +3,10 @@ import dayjs from "dayjs";
 import { env } from "../lib/env";
 import { CsvRow, DetailsStatus, JobDetails, JobRecord } from "../types";
 
+export const clearJobs = async (pool: Pool) => {
+  await pool.query(`TRUNCATE TABLE jobs`);
+};
+
 export const upsertJob = async (
   pool: Pool,
   row: CsvRow,
