@@ -1,9 +1,10 @@
 import { Express, Request, Response } from "express";
 import dayjs from "dayjs";
 import { instance } from "../db/client";
-import { selectAllCurrentJobs, selectAllJobs } from "../db/jobs.repo";
+import { selectJobsFacets, selectJobsPage } from "../db/jobs.repo";
 import { getLastSuccessfulRun } from "../db/runs.repo";
 import { buildETag } from "../lib/cache";
+import { clampLimit, clampPage, JobsQueryInput } from "../db/jobsQuery";
 import { JobRecord, JobRow, JobsResponse } from "../types";
 
 const toJobRow = (record: JobRecord): JobRow => ({
@@ -20,30 +21,55 @@ const toJobRow = (record: JobRecord): JobRow => ({
     : {}),
 });
 
+const asString = (value: Request["query"][string]): string =>
+  typeof value === "string"
+    ? value
+    : Array.isArray(value)
+      ? asString(value[0])
+      : "";
+
+const parseQuery = (
+  req: Request,
+  activeSince: string | null,
+): JobsQueryInput => ({
+  activeSince,
+  search: asString(req.query.search),
+  keyword: asString(req.query.keyword),
+  company: asString(req.query.company),
+  industry: asString(req.query.industry),
+  date: asString(req.query.date),
+  exact: asString(req.query.exact),
+  sort: asString(req.query.sort),
+});
+
 const getJobsHandler = async (req: Request, res: Response) => {
   const pool = instance();
   const lastRun = await getLastSuccessfulRun(pool);
+  const activeSince = lastRun ? lastRun.started_at : null;
 
-  const records = lastRun
-    ? await selectAllCurrentJobs(pool, lastRun.started_at)
-    : await selectAllJobs(pool);
+  const query = parseQuery(req, activeSince);
+  const limit = clampLimit(Number(req.query.limit));
+  const requestedPage = clampPage(Number(req.query.page));
 
-  const enriched = records.filter((r) => r.details_status === "ok").length;
-  const enrichFailed = records.filter(
-    (r) => r.details_status === "failed",
-  ).length;
+  const facets = await selectJobsFacets(pool, query);
+  const totalPages = Math.max(1, Math.ceil(facets.total / limit));
+  const page = Math.min(requestedPage, totalPages);
 
-  const jobs = records.filter((r) => r.details_status === "ok").map(toJobRow);
+  const records = await selectJobsPage(pool, query, page, limit);
+  const jobs = records.map(toJobRow);
 
   const body: JobsResponse = {
     meta: {
       generatedAt: new Date().toISOString(),
-      sourceScrapedAt: jobs[0]?.Scrape_DateTime || null,
-      total: jobs.length,
-      enriched,
-      enrichFailed,
+      sourceScrapedAt: facets.sourceScrapedAt,
     },
     jobs,
+    total: facets.total,
+    totalPages,
+    page,
+    companies: facets.companies,
+    industries: facets.industries,
+    scrapDates: facets.scrapDates,
   };
 
   const json = JSON.stringify(body);

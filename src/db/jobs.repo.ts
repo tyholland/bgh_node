@@ -1,7 +1,13 @@
 import { Pool } from "pg";
 import dayjs from "dayjs";
 import { env } from "../lib/env";
-import { CsvRow, DetailsStatus, JobDetails, JobRecord } from "../types";
+import { CsvRow, DetailsStatus, Facet, JobDetails, JobRecord } from "../types";
+import {
+  buildBaseConditions,
+  buildFullConditions,
+  JobsQueryInput,
+  sortClause,
+} from "./jobsQuery";
 
 export const clearJobs = async (pool: Pool) => {
   await pool.query(`TRUNCATE TABLE jobs`);
@@ -71,21 +77,87 @@ export const writeJobDetails = async (
   );
 };
 
-export const selectAllCurrentJobs = async (
-  pool: Pool,
-  runStartedAt: string,
-): Promise<JobRecord[]> => {
-  const result = await pool.query<JobRecord>(
-    `SELECT * FROM jobs WHERE last_seen_at >= $1 ORDER BY scrape_datetime DESC NULLS LAST`,
-    [runStartedAt],
-  );
+export interface JobsFacets {
+  total: number;
+  sourceScrapedAt: string | null;
+  companies: Facet[];
+  industries: Facet[];
+  scrapDates: string[];
+}
 
-  return result.rows;
+// Everything needed to render the page except the rows themselves: the
+// filtered result count (for pagination) plus facets computed from the base
+// filters (search / keyword / date) so the company and industry lists stay
+// usable regardless of which of those two is currently selected.
+export const selectJobsFacets = async (
+  pool: Pool,
+  input: JobsQueryInput,
+): Promise<JobsFacets> => {
+  const base = buildBaseConditions(input);
+  const full = buildFullConditions(input);
+
+  const [
+    countResult,
+    latestResult,
+    companiesResult,
+    industriesResult,
+    scrapDatesResult,
+  ] = await Promise.all([
+    pool.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM jobs WHERE ${full.clause}`,
+      full.values,
+    ),
+    pool.query<{ latest: string | null }>(
+      `SELECT MAX(scrape_datetime) AS latest FROM jobs WHERE details_status = 'ok'${
+        input.activeSince ? ` AND last_seen_at >= $1` : ""
+      }`,
+      input.activeSince ? [input.activeSince] : [],
+    ),
+    pool.query<{ value: string; count: number }>(
+      `SELECT company AS value, COUNT(*)::int AS count FROM jobs
+         WHERE ${base.clause} AND company IS NOT NULL AND company <> ''
+         GROUP BY company ORDER BY company ASC`,
+      base.values,
+    ),
+    pool.query<{ value: string; count: number }>(
+      `SELECT primary_industry AS value, COUNT(*)::int AS count FROM jobs
+         WHERE ${base.clause} AND primary_industry IS NOT NULL AND primary_industry <> ''
+         GROUP BY primary_industry ORDER BY primary_industry ASC`,
+      base.values,
+    ),
+    pool.query<{ scrape_date: string }>(
+      `SELECT DISTINCT scrape_date FROM jobs
+         WHERE ${base.clause} AND scrape_date IS NOT NULL AND scrape_date <> ''
+         ORDER BY scrape_date DESC`,
+      base.values,
+    ),
+  ]);
+
+  return {
+    total: countResult.rows[0]?.count ?? 0,
+    sourceScrapedAt: latestResult.rows[0]?.latest ?? null,
+    companies: companiesResult.rows,
+    industries: industriesResult.rows,
+    scrapDates: scrapDatesResult.rows.map((row) => row.scrape_date),
+  };
 };
 
-export const selectAllJobs = async (pool: Pool): Promise<JobRecord[]> => {
+// The one page of rows the frontend actually renders.
+export const selectJobsPage = async (
+  pool: Pool,
+  input: JobsQueryInput,
+  page: number,
+  limit: number,
+): Promise<JobRecord[]> => {
+  const { clause, values } = buildFullConditions(input);
+  const offset = (page - 1) * limit;
+
   const result = await pool.query<JobRecord>(
-    `SELECT * FROM jobs ORDER BY scrape_datetime DESC NULLS LAST`,
+    `SELECT * FROM jobs
+     WHERE ${clause}
+     ORDER BY ${sortClause(input.sort)}
+     LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+    [...values, limit, offset],
   );
 
   return result.rows;

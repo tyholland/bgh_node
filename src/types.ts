@@ -29,14 +29,23 @@ export interface JobRow extends CsvRow {
 export interface JobsResponseMeta {
   generatedAt: string;
   sourceScrapedAt: string | null;
-  total: number;
-  enriched: number;
-  enrichFailed: number;
+}
+
+// A filterable value plus how many jobs currently match it.
+export interface Facet {
+  value: string;
+  count: number;
 }
 
 export interface JobsResponse {
   meta: JobsResponseMeta;
   jobs: JobRow[];
+  total: number;
+  totalPages: number;
+  page: number;
+  companies: Facet[];
+  industries: Facet[];
+  scrapDates: string[];
 }
 
 export interface JobRecord {
