@@ -107,14 +107,23 @@ export const buildBaseConditions = (input: JobsQueryInput): SqlConditions => {
   return { clause: conditions.join(" AND "), values };
 };
 
-// Base conditions plus the company / industry selection — used for the page
-// query and the total count.
-export const buildFullConditions = (input: JobsQueryInput): SqlConditions => {
+type FacetField = "company" | "industry";
+
+// Base conditions plus whichever of company / industry is in `include` —
+// lets each facet query filter by every *other* active selection while
+// leaving its own dimension unfiltered, so picking a company narrows the
+// industry list (and its counts) to what's actually available among those
+// companies, and vice versa, without a selected value ever filtering itself
+// out of its own checkbox list.
+const buildConditions = (
+  input: JobsQueryInput,
+  include: readonly FacetField[],
+): SqlConditions => {
   const base = buildBaseConditions(input);
   const conditions = [base.clause];
   const values = [...base.values];
 
-  if (input.company) {
+  if (include.includes("company") && input.company) {
     const wanted = splitList(input.company);
     if (wanted.length) {
       values.push(wanted);
@@ -122,7 +131,7 @@ export const buildFullConditions = (input: JobsQueryInput): SqlConditions => {
     }
   }
 
-  if (input.industry) {
+  if (include.includes("industry") && input.industry) {
     const wanted = splitList(input.industry);
     if (wanted.length) {
       values.push(wanted);
@@ -134,3 +143,22 @@ export const buildFullConditions = (input: JobsQueryInput): SqlConditions => {
 
   return { clause: conditions.join(" AND "), values };
 };
+
+// Base conditions plus both the company and industry selection — used for
+// the page query, the total count, and the posted-date list (none of which
+// need to exclude either dimension from itself).
+export const buildFullConditions = (input: JobsQueryInput): SqlConditions =>
+  buildConditions(input, ["company", "industry"]);
+
+// For the company checkbox list: every active filter except the company
+// selection itself, so choosing an industry narrows which companies (and
+// counts) show up, while a company you've already checked stays visible.
+export const buildCompanyFacetConditions = (
+  input: JobsQueryInput,
+): SqlConditions => buildConditions(input, ["industry"]);
+
+// For the industry checkbox list: every active filter except the industry
+// selection itself.
+export const buildIndustryFacetConditions = (
+  input: JobsQueryInput,
+): SqlConditions => buildConditions(input, ["company"]);

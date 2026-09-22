@@ -3,8 +3,9 @@ import dayjs from "dayjs";
 import { env } from "../lib/env";
 import { CsvRow, DetailsStatus, Facet, JobDetails, JobRecord } from "../types";
 import {
-  buildBaseConditions,
+  buildCompanyFacetConditions,
   buildFullConditions,
+  buildIndustryFacetConditions,
   JobsQueryInput,
   sortClause,
 } from "./jobsQuery";
@@ -86,15 +87,17 @@ export interface JobsFacets {
 }
 
 // Everything needed to render the page except the rows themselves: the
-// filtered result count (for pagination) plus facets computed from the base
-// filters (search / keyword / date) so the company and industry lists stay
-// usable regardless of which of those two is currently selected.
+// filtered result count (for pagination) plus facets. Each facet is computed
+// from every *other* active filter — picking a company narrows the industry
+// list (and vice versa) — while excluding its own dimension so an already-
+// applied value stays visible in its own checkbox list instead of vanishing.
 export const selectJobsFacets = async (
   pool: Pool,
   input: JobsQueryInput,
 ): Promise<JobsFacets> => {
-  const base = buildBaseConditions(input);
   const full = buildFullConditions(input);
+  const forCompanies = buildCompanyFacetConditions(input);
+  const forIndustries = buildIndustryFacetConditions(input);
 
   const [
     countResult,
@@ -115,21 +118,21 @@ export const selectJobsFacets = async (
     ),
     pool.query<{ value: string; count: number }>(
       `SELECT company AS value, COUNT(*)::int AS count FROM jobs
-         WHERE ${base.clause} AND company IS NOT NULL AND company <> ''
+         WHERE ${forCompanies.clause} AND company IS NOT NULL AND company <> ''
          GROUP BY company ORDER BY company ASC`,
-      base.values,
+      forCompanies.values,
     ),
     pool.query<{ value: string; count: number }>(
       `SELECT primary_industry AS value, COUNT(*)::int AS count FROM jobs
-         WHERE ${base.clause} AND primary_industry IS NOT NULL AND primary_industry <> ''
+         WHERE ${forIndustries.clause} AND primary_industry IS NOT NULL AND primary_industry <> ''
          GROUP BY primary_industry ORDER BY primary_industry ASC`,
-      base.values,
+      forIndustries.values,
     ),
     pool.query<{ scrape_date: string }>(
       `SELECT DISTINCT scrape_date FROM jobs
-         WHERE ${base.clause} AND scrape_date IS NOT NULL AND scrape_date <> ''
+         WHERE ${full.clause} AND scrape_date IS NOT NULL AND scrape_date <> ''
          ORDER BY scrape_date DESC`,
-      base.values,
+      full.values,
     ),
   ]);
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBaseConditions,
+  buildCompanyFacetConditions,
   buildFullConditions,
+  buildIndustryFacetConditions,
   clampLimit,
   clampPage,
   JobsQueryInput,
@@ -152,5 +154,45 @@ describe("buildFullConditions", () => {
     const full = buildFullConditions(query({ search: "engineer" }));
     expect(full.clause).toBe(base.clause);
     expect(full.values).toEqual(base.values);
+  });
+});
+
+describe("buildCompanyFacetConditions", () => {
+  it("includes the industry filter but not the company filter", () => {
+    const { clause, values } = buildCompanyFacetConditions(
+      query({ company: "Acme", industry: "Technology" }),
+    );
+    expect(clause).not.toContain("company) = ANY");
+    expect(clause).toContain("lower(primary_industry) = ANY($1::text[])");
+    expect(values).toEqual([["technology"]]);
+  });
+
+  it("matches base conditions when no industry filter is set", () => {
+    const base = buildBaseConditions(query({ company: "Acme" }));
+    const forCompanies = buildCompanyFacetConditions(
+      query({ company: "Acme" }),
+    );
+    expect(forCompanies.clause).toBe(base.clause);
+    expect(forCompanies.values).toEqual(base.values);
+  });
+});
+
+describe("buildIndustryFacetConditions", () => {
+  it("includes the company filter but not the industry filter", () => {
+    const { clause, values } = buildIndustryFacetConditions(
+      query({ company: "Acme", industry: "Technology" }),
+    );
+    expect(clause).toContain("lower(company) = ANY($1::text[])");
+    expect(clause).not.toContain("primary_industry) = ANY");
+    expect(values).toEqual([["acme"]]);
+  });
+
+  it("matches base conditions when no company filter is set", () => {
+    const base = buildBaseConditions(query({ industry: "Technology" }));
+    const forIndustries = buildIndustryFacetConditions(
+      query({ industry: "Technology" }),
+    );
+    expect(forIndustries.clause).toBe(base.clause);
+    expect(forIndustries.values).toEqual(base.values);
   });
 });
