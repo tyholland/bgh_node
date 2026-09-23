@@ -9,7 +9,24 @@ const numberFromString = (fallback: number) =>
   z
     .string()
     .optional()
-    .transform((v) => (v ? Number(v) : fallback));
+    .transform((v, ctx) => {
+      if (!v) {
+        return fallback;
+      }
+
+      const n = Number(v);
+
+      if (!Number.isFinite(n)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Expected a number, got "${v}"`,
+        });
+
+        return z.NEVER;
+      }
+
+      return n;
+    });
 
 const envSchema = z.object({
   PORT: z.string().default("8080"),
@@ -38,7 +55,6 @@ const envSchema = z.object({
   CONTACT_RECIPIENTS: z
     .string()
     .default("ty@heiprodigital.com,cpbeganski@gmail.com,ben@greenefamily.us"),
-  TURNSTILE_SECRET: z.string().optional(),
 
   FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
 
@@ -61,9 +77,15 @@ export type Env = z.infer<typeof envSchema> & {
 
 const parsed = envSchema.parse(process.env);
 
+const dbPortNum = parsed.DB_PORT ? Number(parsed.DB_PORT) : undefined;
+
+if (dbPortNum !== undefined && !Number.isFinite(dbPortNum)) {
+  throw new Error(`Invalid DB_PORT: "${parsed.DB_PORT}"`);
+}
+
 export const env: Env = {
   ...parsed,
-  DB_PORT_NUM: parsed.DB_PORT ? Number(parsed.DB_PORT) : undefined,
+  DB_PORT_NUM: dbPortNum,
   ALLOWED_ORIGINS_LIST: parsed.ALLOWED_ORIGINS.split(",")
     .map((s) => s.trim())
     .filter(Boolean),

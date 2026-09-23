@@ -3,6 +3,7 @@ import parser from "cron-parser";
 import { instance } from "../db/client";
 import { getLastRun } from "../db/runs.repo";
 import { env } from "../lib/env";
+import { logger } from "../lib/logger";
 
 const getStatusHandler = async (req: Request, res: Response) => {
   const pool = instance();
@@ -45,7 +46,10 @@ export const statusRoutes = (app: Express) => {
 
   app.get("/v1/status", (req, res) => {
     getStatusHandler(req, res).catch((err) => {
-      res.status(500).json({ err: String(err), action: "Get status" });
+      logger.error("Failed to get status", err);
+      res
+        .status(500)
+        .json({ err: "Internal server error", action: "Get status" });
     });
   });
 };

@@ -5,6 +5,7 @@ import { selectJobsFacets, selectJobsPage } from "../db/jobs.repo";
 import { getLastSuccessfulRun } from "../db/runs.repo";
 import { buildETag } from "../lib/cache";
 import { clampLimit, clampPage, JobsQueryInput } from "../db/jobsQuery";
+import { logger } from "../lib/logger";
 import { JobRecord, JobRow, JobsResponse } from "../types";
 
 const toJobRow = (record: JobRecord): JobRow => ({
@@ -72,8 +73,15 @@ const getJobsHandler = async (req: Request, res: Response) => {
     scrapDates: facets.scrapDates,
   };
 
+  // generatedAt is always "now", so it's excluded from the ETag input —
+  // otherwise every response would get a distinct ETag and conditional
+  // GETs (and CDN revalidation) could never actually hit a 304.
+  const { meta, ...cacheableBody } = body;
+  const etag = buildETag(
+    JSON.stringify({ ...cacheableBody, sourceScrapedAt: meta.sourceScrapedAt }),
+  );
+
   const json = JSON.stringify(body);
-  const etag = buildETag(json);
 
   res.set("Cache-Control", "public, s-maxage=900, stale-while-revalidate=3600");
   res.set("ETag", etag);
@@ -88,7 +96,10 @@ const getJobsHandler = async (req: Request, res: Response) => {
 export const jobsRoutes = (app: Express) => {
   app.get("/v1/jobs", (req, res) => {
     getJobsHandler(req, res).catch((err) => {
-      res.status(500).json({ err: String(err), action: "Get jobs" });
+      logger.error("Failed to get jobs", err);
+      res
+        .status(500)
+        .json({ err: "Internal server error", action: "Get jobs" });
     });
   });
 };

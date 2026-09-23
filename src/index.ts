@@ -42,7 +42,7 @@ const start = async () => {
     logger.info(`Server is running at http://localhost:${env.PORT}`);
   });
 
-  const CLEAR_JOBS_HOURS = [0, 3];
+  const CLEAR_JOBS_HOURS = [3];
 
   cron.schedule(
     env.INGEST_CRON,

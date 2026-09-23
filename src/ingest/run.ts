@@ -13,7 +13,25 @@ import { fetchAndNormalizeCsv } from "./csv";
 import { enrichJob } from "./enrich";
 import { revalidateFrontend } from "./revalidate";
 
-export const runIngest = async (clearOldJobs = true) => {
+let isRunning = false;
+
+export const isIngestRunning = () => isRunning;
+
+export const runIngest = async (clearOldJobs = false) => {
+  if (isRunning) {
+    throw new Error("Ingest run already in progress");
+  }
+
+  isRunning = true;
+
+  try {
+    await runIngestUnlocked(clearOldJobs);
+  } finally {
+    isRunning = false;
+  }
+};
+
+const runIngestUnlocked = async (clearOldJobs: boolean) => {
   const pool = instance();
   const run = await startRun(pool);
 

@@ -6,7 +6,9 @@ import {
   insertSavedSearch,
   listSavedSearchesByUid,
 } from "../db/savedSearches.repo";
+import { getUserByUid } from "../db/users.repo";
 import { requireFirebaseAuth } from "../auth/verifyIdToken";
+import { logger } from "../lib/logger";
 import { SavedSearchRecord } from "../types";
 
 const urlParamsSchema = z
@@ -45,6 +47,14 @@ const postSavedSearchHandler = async (req: Request, res: Response) => {
   }
 
   const pool = instance();
+  const user = await getUserByUid(pool, res.locals.firebaseUid);
+
+  if (!user) {
+    return res
+      .status(409)
+      .json({ ok: false, err: "User profile not found; create it first" });
+  }
+
   const record = await insertSavedSearch(
     pool,
     res.locals.firebaseUid,
@@ -83,22 +93,27 @@ const deleteSavedSearchHandler = async (req: Request, res: Response) => {
   return res.status(200).json({ ok: true });
 };
 
+const handleError = (label: string, res: Response) => (err: unknown) => {
+  logger.error(label, err);
+  res.status(500).json({ ok: false, err: "Internal server error" });
+};
+
 export const savedSearchesRoutes = (app: Express) => {
   app.post("/v1/saved-searches", requireFirebaseAuth, (req, res) => {
-    postSavedSearchHandler(req, res).catch((err) => {
-      res.status(500).json({ ok: false, err: String(err) });
-    });
+    postSavedSearchHandler(req, res).catch(
+      handleError("Failed to create saved search", res),
+    );
   });
 
   app.get("/v1/saved-searches", requireFirebaseAuth, (req, res) => {
-    getSavedSearchesHandler(req, res).catch((err) => {
-      res.status(500).json({ ok: false, err: String(err) });
-    });
+    getSavedSearchesHandler(req, res).catch(
+      handleError("Failed to list saved searches", res),
+    );
   });
 
   app.delete("/v1/saved-searches/:id", requireFirebaseAuth, (req, res) => {
-    deleteSavedSearchHandler(req, res).catch((err) => {
-      res.status(500).json({ ok: false, err: String(err) });
-    });
+    deleteSavedSearchHandler(req, res).catch(
+      handleError("Failed to delete saved search", res),
+    );
   });
 };

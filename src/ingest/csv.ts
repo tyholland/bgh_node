@@ -1,9 +1,16 @@
 import Papa from "papaparse";
 import { env } from "../lib/env";
+import { logger } from "../lib/logger";
 import { CsvRow } from "../types";
 
 export const downloadCsv = async (): Promise<string> => {
-  const res = await fetch(env.CSV_SOURCE_URL);
+  let res = await fetch(env.CSV_SOURCE_URL);
+
+  if (res.status === 429 || res.status >= 500) {
+    logger.warn(`CSV download failed with status ${res.status}, retrying`);
+    await new Promise((r) => setTimeout(r, 1000));
+    res = await fetch(env.CSV_SOURCE_URL);
+  }
 
   if (!res.ok) {
     throw new Error(`Failed to download CSV: ${res.status}`);

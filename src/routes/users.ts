@@ -3,6 +3,7 @@ import { z } from "zod";
 import { instance } from "../db/client";
 import { getUserByUid, upsertUser } from "../db/users.repo";
 import { requireFirebaseAuth } from "../auth/verifyIdToken";
+import { logger } from "../lib/logger";
 
 const userProfileSchema = z.object({
   uid: z.string().min(1),
@@ -56,16 +57,17 @@ const patchUserHandler = async (req: Request, res: Response) => {
   return res.status(200).json({ ok: true });
 };
 
+const handleError = (label: string, res: Response) => (err: unknown) => {
+  logger.error(label, err);
+  res.status(500).json({ ok: false, err: "Internal server error" });
+};
+
 export const usersRoutes = (app: Express) => {
   app.post("/v1/users", requireFirebaseAuth, (req, res) => {
-    postUsersHandler(req, res).catch((err) => {
-      res.status(500).json({ ok: false, err: String(err) });
-    });
+    postUsersHandler(req, res).catch(handleError("Failed to create user", res));
   });
 
   app.patch("/v1/users/:uid", requireFirebaseAuth, (req, res) => {
-    patchUserHandler(req, res).catch((err) => {
-      res.status(500).json({ ok: false, err: String(err) });
-    });
+    patchUserHandler(req, res).catch(handleError("Failed to update user", res));
   });
 };
