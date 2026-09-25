@@ -52,6 +52,7 @@ const envSchema = z.object({
   REDIRECT_URI: z.string().optional(),
   REFRESH_TOKEN: z.string().optional(),
   SENDER_EMAIL: z.string().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
   CONTACT_RECIPIENTS: z
     .string()
     .default("ty@heiprodigital.com,cpbeganski@gmail.com,ben@greenefamily.us"),
