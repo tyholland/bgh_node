@@ -47,10 +47,6 @@ const envSchema = z.object({
   FRONTEND_REVALIDATE_URL: z.string().url().optional(),
   REVALIDATE_SECRET: z.string().optional(),
 
-  CLIENT_ID: z.string().optional(),
-  CLIENT_SECRET: z.string().optional(),
-  REDIRECT_URI: z.string().optional(),
-  REFRESH_TOKEN: z.string().optional(),
   SENDER_EMAIL: z.string().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
   CONTACT_RECIPIENTS: z
