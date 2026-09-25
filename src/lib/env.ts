@@ -53,6 +53,9 @@ const envSchema = z.object({
     .string()
     .default("ty@heiprodigital.com,cpbeganski@gmail.com,ben@greenefamily.us"),
 
+  FRONTEND_BASE_URL: z.string().url().default("https://www.bghscout.com"),
+  SAVED_SEARCH_DIGEST_CRON: z.string().default("0 9 * * *"),
+
   FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
 
   CRAWL_CONCURRENCY: numberFromString(6),

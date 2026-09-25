@@ -12,6 +12,7 @@ import { contactRoutes } from "./routes/contact";
 import { usersRoutes } from "./routes/users";
 import { savedSearchesRoutes } from "./routes/savedSearches";
 import { runIngest } from "./ingest/run";
+import { runSavedSearchDigest } from "./digest/savedSearchDigest";
 
 const app: Express = express();
 
@@ -58,6 +59,16 @@ const start = async () => {
 
       runIngest(clearOldJobs).catch((err) =>
         logger.error("Scheduled ingest run failed", err),
+      );
+    },
+    { timezone: "America/New_York" },
+  );
+
+  cron.schedule(
+    env.SAVED_SEARCH_DIGEST_CRON,
+    () => {
+      runSavedSearchDigest(pool).catch((err) =>
+        logger.error("Scheduled saved search digest run failed", err),
       );
     },
     { timezone: "America/New_York" },

@@ -145,6 +145,22 @@ export const selectJobsFacets = async (
   };
 };
 
+// Just the filtered result count — used by the saved-search digest, which
+// needs a total per saved search but never renders any rows.
+export const countJobs = async (
+  pool: Pool,
+  input: JobsQueryInput,
+): Promise<number> => {
+  const { clause, values } = buildFullConditions(input);
+
+  const result = await pool.query<{ count: number }>(
+    `SELECT COUNT(*)::int AS count FROM jobs WHERE ${clause}`,
+    values,
+  );
+
+  return result.rows[0]?.count ?? 0;
+};
+
 // The one page of rows the frontend actually renders.
 export const selectJobsPage = async (
   pool: Pool,

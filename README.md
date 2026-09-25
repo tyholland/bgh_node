@@ -46,6 +46,13 @@ A scheduled ingest also runs in-process via `node-cron` on `INGEST_CRON`
 (default `0 3,9,15,21 * * *`, America/New_York) — the host does not need its
 own scheduler.
 
+A scheduled saved-search digest email also runs in-process via `node-cron` on
+`SAVED_SEARCH_DIGEST_CRON` (default `0 9 * * *`, America/New_York). Every user
+with at least one saved search and an email on file gets one email listing
+each saved search's name (linked back to that search on
+[bghscout.com](https://www.bghscout.com), via `FRONTEND_BASE_URL`) and its
+current result count.
+
 ## Environment variables
 
 See `.env.example`. Notably:

@@ -1,9 +1,9 @@
 import { Express, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
-import nodemailer from "nodemailer";
 import { z } from "zod";
 import { env } from "../lib/env";
 import { logger } from "../lib/logger";
+import { buildMailTransport } from "../lib/mail";
 
 const contactSchema = z.object({
   kind: z.enum(["feedback", "company-request"]),
@@ -20,15 +20,6 @@ const contactRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const buildTransport = () =>
-  nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: env.SENDER_EMAIL,
-      pass: env.GMAIL_APP_PASSWORD,
-    },
-  });
-
 const subjectFor = (kind: string) =>
   kind === "company-request"
     ? "New company request — BGH Scout"
@@ -44,7 +35,7 @@ const postContactHandler = async (req: Request, res: Response) => {
   const { kind, firstName, lastName, email, message } = parsed.data;
 
   try {
-    const transport = buildTransport();
+    const transport = buildMailTransport();
 
     await transport.sendMail({
       from: env.SENDER_EMAIL,

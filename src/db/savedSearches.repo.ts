@@ -41,3 +41,24 @@ export const deleteSavedSearch = async (
 
   return (result.rowCount || 0) > 0;
 };
+
+export interface SavedSearchWithOwner extends SavedSearchRecord {
+  email: string;
+  display_name: string | null;
+}
+
+// Every saved search belonging to a user with an email on file — the source
+// list for the saved-search digest email.
+export const listSavedSearchesForDigest = async (
+  pool: Pool,
+): Promise<SavedSearchWithOwner[]> => {
+  const result = await pool.query<SavedSearchWithOwner>(
+    `SELECT s.*, u.email, u.display_name
+     FROM saved_searches s
+     JOIN users_bgh u ON u.uid = s.uid
+     WHERE u.email IS NOT NULL AND u.email <> ''
+     ORDER BY s.uid, s.created_at ASC`,
+  );
+
+  return result.rows;
+};
