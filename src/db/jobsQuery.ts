@@ -66,7 +66,7 @@ export interface SqlConditions {
 // usable while one of those filters is applied.
 export const buildBaseConditions = (input: JobsQueryInput): SqlConditions => {
   const values: unknown[] = [];
-  const conditions: string[] = ["details_status = 'ok'"];
+  const conditions: string[] = ["details_status IN ('ok', 'not_found')"];
 
   if (input.activeSince) {
     values.push(input.activeSince);
