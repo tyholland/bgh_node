@@ -147,10 +147,7 @@ export const selectJobsFacets = async (
       full.values,
     ),
     pool.query<{ latest: string | null }>(
-      `SELECT MAX(scrape_datetime) AS latest FROM jobs WHERE details_status = 'ok'${
-        input.activeSince ? ` AND last_seen_at >= $1` : ""
-      }`,
-      input.activeSince ? [input.activeSince] : [],
+      `SELECT MAX(last_seen_at) AS latest FROM jobs WHERE details_status IN ('ok', 'not_found')`,
     ),
     pool.query<{ value: string; count: number }>(
       `SELECT company AS value, COUNT(*)::int AS count FROM jobs
