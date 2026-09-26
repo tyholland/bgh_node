@@ -12,6 +12,9 @@
     "dev": "nodemon -r dotenv/config src/index.ts",
     "ingest": "ts-node -r dotenv/config scripts/ingest-once.ts",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "format:check": "prettier --check --ignore-unknown src/",
     "prepare": "husky"
   },
   "keywords": [],
