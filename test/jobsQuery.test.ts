@@ -79,9 +79,9 @@ describe("sortClause", () => {
 });
 
 describe("buildBaseConditions", () => {
-  it("always requires an ok details_status", () => {
+  it("requires an ok or not_found details_status", () => {
     const { clause, values } = buildBaseConditions(query());
-    expect(clause).toBe("details_status = 'ok'");
+    expect(clause).toBe("details_status IN ('ok', 'not_found')");
     expect(values).toEqual([]);
   });
 
@@ -129,7 +129,7 @@ describe("buildBaseConditions", () => {
     const { clause, values } = buildBaseConditions(
       query({ date: "not-a-date" }),
     );
-    expect(clause).toBe("details_status = 'ok'");
+    expect(clause).toBe("details_status IN ('ok', 'not_found')");
     expect(values).toEqual([]);
   });
 });

@@ -40,3 +40,20 @@ export const getUserByUid = async (
 
   return result.rows[0] || null;
 };
+
+export interface UserContact {
+  email: string;
+  display_name: string | null;
+}
+
+// Every user with an email on file — the source list for the weekly
+// opportunities email.
+export const listUsersForWeeklyEmail = async (
+  pool: Pool,
+): Promise<UserContact[]> => {
+  const result = await pool.query<UserContact>(
+    `SELECT email, display_name FROM users_bgh WHERE email IS NOT NULL AND email <> ''`,
+  );
+
+  return result.rows;
+};

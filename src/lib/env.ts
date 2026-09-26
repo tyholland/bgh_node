@@ -55,6 +55,7 @@ const envSchema = z.object({
 
   FRONTEND_BASE_URL: z.string().url().default("https://www.bghscout.com"),
   SAVED_SEARCH_DIGEST_CRON: z.string().default("0 9 * * *"),
+  WEEKLY_EMAIL_CRON: z.string().default("0 10 * * 1"),
 
   FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
 

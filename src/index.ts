@@ -13,6 +13,7 @@ import { usersRoutes } from "./routes/users";
 import { savedSearchesRoutes } from "./routes/savedSearches";
 import { resumeInterruptedIngest, runIngest } from "./ingest/run";
 import { runSavedSearchDigest } from "./digest/savedSearchDigest";
+import { runWeeklyOpportunitiesEmail } from "./digest/weeklyOpportunitiesEmail";
 
 const app: Express = express();
 
@@ -73,6 +74,16 @@ const start = async () => {
     () => {
       runSavedSearchDigest(pool).catch((err) =>
         logger.error("Scheduled saved search digest run failed", err),
+      );
+    },
+    { timezone: "America/New_York" },
+  );
+
+  cron.schedule(
+    env.WEEKLY_EMAIL_CRON,
+    () => {
+      runWeeklyOpportunitiesEmail(pool).catch((err) =>
+        logger.error("Scheduled weekly opportunities email run failed", err),
       );
     },
     { timezone: "America/New_York" },
