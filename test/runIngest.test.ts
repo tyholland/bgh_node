@@ -11,6 +11,8 @@ vi.mock("../src/db/jobs.repo", () => ({
 vi.mock("../src/db/runs.repo", () => ({
   startRun: vi.fn(),
   finishRun: vi.fn(),
+  getIncompleteRun: vi.fn(),
+  abandonRun: vi.fn(),
 }));
 vi.mock("../src/ingest/csv", () => ({ fetchAndNormalizeCsv: vi.fn() }));
 vi.mock("../src/ingest/enrich", () => ({ enrichJob: vi.fn() }));
@@ -23,11 +25,20 @@ import {
   upsertJob,
   writeJobDetails,
 } from "../src/db/jobs.repo";
-import { finishRun, startRun } from "../src/db/runs.repo";
+import {
+  abandonRun,
+  finishRun,
+  getIncompleteRun,
+  startRun,
+} from "../src/db/runs.repo";
 import { fetchAndNormalizeCsv } from "../src/ingest/csv";
 import { enrichJob } from "../src/ingest/enrich";
 import { revalidateFrontend } from "../src/ingest/revalidate";
-import { isIngestRunning, runIngest } from "../src/ingest/run";
+import {
+  isIngestRunning,
+  resumeInterruptedIngest,
+  runIngest,
+} from "../src/ingest/run";
 
 const fakeRun: IngestRun = {
   id: "run-1",
@@ -42,9 +53,12 @@ const fakeRun: IngestRun = {
 
 describe("runIngest", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(instance).mockReturnValue({} as never);
     vi.mocked(startRun).mockResolvedValue(fakeRun);
     vi.mocked(finishRun).mockResolvedValue(undefined);
+    vi.mocked(getIncompleteRun).mockResolvedValue(null);
+    vi.mocked(abandonRun).mockResolvedValue(undefined);
     vi.mocked(clearJobs).mockResolvedValue(undefined);
     vi.mocked(selectRowsToEnrich).mockResolvedValue([]);
     vi.mocked(upsertJob).mockResolvedValue(undefined);
@@ -97,5 +111,48 @@ describe("runIngest", () => {
     // The lock being released means a subsequent run is allowed to start.
     vi.mocked(fetchAndNormalizeCsv).mockResolvedValue([]);
     await expect(runIngest()).resolves.toBeUndefined();
+  });
+});
+
+describe("resumeInterruptedIngest", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(instance).mockReturnValue({} as never);
+    vi.mocked(startRun).mockResolvedValue(fakeRun);
+    vi.mocked(finishRun).mockResolvedValue(undefined);
+    vi.mocked(abandonRun).mockResolvedValue(undefined);
+    vi.mocked(clearJobs).mockResolvedValue(undefined);
+    vi.mocked(selectRowsToEnrich).mockResolvedValue([]);
+    vi.mocked(upsertJob).mockResolvedValue(undefined);
+    vi.mocked(writeJobDetails).mockResolvedValue(undefined);
+    vi.mocked(fetchAndNormalizeCsv).mockResolvedValue([]);
+    vi.mocked(enrichJob).mockResolvedValue({ status: "ok", details: null });
+    vi.mocked(revalidateFrontend).mockResolvedValue(undefined);
+  });
+
+  it("does nothing when the last run finished cleanly", async () => {
+    vi.mocked(getIncompleteRun).mockResolvedValue(null);
+
+    await resumeInterruptedIngest();
+
+    expect(abandonRun).not.toHaveBeenCalled();
+    expect(startRun).not.toHaveBeenCalled();
+  });
+
+  it("abandons an orphaned run and starts a fresh one", async () => {
+    vi.mocked(getIncompleteRun).mockResolvedValue({
+      ...fakeRun,
+      id: "orphaned-run",
+    });
+
+    await resumeInterruptedIngest();
+
+    expect(abandonRun).toHaveBeenCalledWith(
+      expect.anything(),
+      "orphaned-run",
+      expect.any(String),
+    );
+    expect(startRun).toHaveBeenCalledTimes(1);
+    expect(isIngestRunning()).toBe(false);
   });
 });

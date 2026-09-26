@@ -11,7 +11,7 @@ import { ingestRoutes } from "./routes/ingest";
 import { contactRoutes } from "./routes/contact";
 import { usersRoutes } from "./routes/users";
 import { savedSearchesRoutes } from "./routes/savedSearches";
-import { runIngest } from "./ingest/run";
+import { resumeInterruptedIngest, runIngest } from "./ingest/run";
 import { runSavedSearchDigest } from "./digest/savedSearchDigest";
 
 const app: Express = express();
@@ -42,6 +42,10 @@ const start = async () => {
   app.listen(env.PORT, () => {
     logger.info(`Server is running at http://localhost:${env.PORT}`);
   });
+
+  resumeInterruptedIngest().catch((err) =>
+    logger.error("Failed to resume interrupted ingest run", err),
+  );
 
   const CLEAR_JOBS_HOURS = [3];
 

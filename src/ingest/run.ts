@@ -6,7 +6,12 @@ import {
   upsertJob,
   writeJobDetails,
 } from "../db/jobs.repo";
-import { finishRun, startRun } from "../db/runs.repo";
+import {
+  abandonRun,
+  finishRun,
+  getIncompleteRun,
+  startRun,
+} from "../db/runs.repo";
 import { env } from "../lib/env";
 import { logger } from "../lib/logger";
 import { fetchAndNormalizeCsv } from "./csv";
@@ -16,6 +21,33 @@ import { revalidateFrontend } from "./revalidate";
 let isRunning = false;
 
 export const isIngestRunning = () => isRunning;
+
+// Call once at startup, after the server is accepting traffic. If the
+// previous run never reached finishRun (the process was killed or crashed
+// mid-run), mark it failed for accurate history and kick off a fresh run so
+// the interrupted work gets picked back up: upsertJob is idempotent and
+// selectRowsToEnrich re-selects anything still pending, so a plain runIngest
+// naturally continues where the orphaned run left off.
+export const resumeInterruptedIngest = async () => {
+  const pool = instance();
+  const incomplete = await getIncompleteRun(pool);
+
+  if (!incomplete) {
+    return;
+  }
+
+  logger.warn(
+    `Found incomplete ingest run ${incomplete.id} started at ${incomplete.started_at}; resuming`,
+  );
+
+  await abandonRun(
+    pool,
+    incomplete.id,
+    "Interrupted: server restarted before this run finished",
+  );
+
+  await runIngest();
+};
 
 export const runIngest = async (clearOldJobs = false) => {
   if (isRunning) {
