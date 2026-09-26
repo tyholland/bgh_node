@@ -24,10 +24,10 @@ export const isIngestRunning = () => isRunning;
 
 // Call once at startup, after the server is accepting traffic. If the
 // previous run never reached finishRun (the process was killed or crashed
-// mid-run), mark it failed for accurate history and kick off a fresh run so
-// the interrupted work gets picked back up: upsertJob is idempotent and
+// mid-run) or it finished but failed (ok = false), kick off a fresh run so
+// the work gets picked back up: upsertJob is idempotent and
 // selectRowsToEnrich re-selects anything still pending, so a plain runIngest
-// naturally continues where the orphaned run left off.
+// naturally continues where the previous run left off.
 export const resumeInterruptedIngest = async () => {
   const pool = instance();
   const incomplete = await getIncompleteRun(pool);
@@ -36,15 +36,24 @@ export const resumeInterruptedIngest = async () => {
     return;
   }
 
-  logger.warn(
-    `Found incomplete ingest run ${incomplete.id} started at ${incomplete.started_at}; resuming`,
-  );
+  if (incomplete.finished_at === null) {
+    // Never reached finishRun, so its error/finished_at need backfilling for
+    // accurate history. A run that already finished with ok = false already
+    // has its own error recorded — leave it as-is and just retry.
+    logger.warn(
+      `Found incomplete ingest run ${incomplete.id} started at ${incomplete.started_at}; resuming`,
+    );
 
-  await abandonRun(
-    pool,
-    incomplete.id,
-    "Interrupted: server restarted before this run finished",
-  );
+    await abandonRun(
+      pool,
+      incomplete.id,
+      "Interrupted: server restarted before this run finished",
+    );
+  } else {
+    logger.warn(
+      `Last ingest run ${incomplete.id} failed (${incomplete.error ?? "unknown error"}); retrying`,
+    );
+  }
 
   await runIngest();
 };

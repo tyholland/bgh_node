@@ -51,17 +51,20 @@ export const getLastSuccessfulRun = async (
   return result.rows[0] || null;
 };
 
-// A run with no finished_at was cut off mid-flight (e.g. the process was
-// killed or restarted before it could call finishRun) rather than legitimately
-// still running, since the in-memory isRunning lock never survives a restart.
+// The last run needs to be picked back up if it never reached finishRun (the
+// process was killed or restarted mid-run, since the in-memory isRunning lock
+// never survives a restart) or if it finished but failed (ok = false) — in
+// both cases there's nothing currently running, so it's safe to retry.
 export const getIncompleteRun = async (
   pool: Pool,
 ): Promise<IngestRun | null> => {
-  const result = await pool.query<IngestRun>(
-    `SELECT * FROM ingest_runs WHERE finished_at IS NULL ORDER BY started_at DESC LIMIT 1`,
-  );
+  const lastRun = await getLastRun(pool);
 
-  return result.rows[0] || null;
+  if (!lastRun || lastRun.ok === true) {
+    return null;
+  }
+
+  return lastRun;
 };
 
 export const abandonRun = async (pool: Pool, id: string, error: string) => {

@@ -139,10 +139,11 @@ describe("resumeInterruptedIngest", () => {
     expect(startRun).not.toHaveBeenCalled();
   });
 
-  it("abandons an orphaned run and starts a fresh one", async () => {
+  it("abandons an orphaned (never-finished) run and starts a fresh one", async () => {
     vi.mocked(getIncompleteRun).mockResolvedValue({
       ...fakeRun,
       id: "orphaned-run",
+      finished_at: null,
     });
 
     await resumeInterruptedIngest();
@@ -152,6 +153,22 @@ describe("resumeInterruptedIngest", () => {
       "orphaned-run",
       expect.any(String),
     );
+    expect(startRun).toHaveBeenCalledTimes(1);
+    expect(isIngestRunning()).toBe(false);
+  });
+
+  it("retries a run that already finished with ok = false, without touching its recorded error", async () => {
+    vi.mocked(getIncompleteRun).mockResolvedValue({
+      ...fakeRun,
+      id: "failed-run",
+      finished_at: new Date().toISOString(),
+      ok: false,
+      error: "network down",
+    });
+
+    await resumeInterruptedIngest();
+
+    expect(abandonRun).not.toHaveBeenCalled();
     expect(startRun).toHaveBeenCalledTimes(1);
     expect(isIngestRunning()).toBe(false);
   });
