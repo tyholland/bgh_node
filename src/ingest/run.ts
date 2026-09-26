@@ -3,7 +3,7 @@ import { instance } from "../db/client";
 import {
   clearJobs,
   selectRowsToEnrich,
-  upsertJob,
+  upsertJobs,
   writeJobDetails,
 } from "../db/jobs.repo";
 import {
@@ -25,7 +25,7 @@ export const isIngestRunning = () => isRunning;
 // Call once at startup, after the server is accepting traffic. If the
 // previous run never reached finishRun (the process was killed or crashed
 // mid-run) or it finished but failed (ok = false), kick off a fresh run so
-// the work gets picked back up: upsertJob is idempotent and
+// the work gets picked back up: upsertJobs is idempotent and
 // selectRowsToEnrich re-selects anything still pending, so a plain runIngest
 // naturally continues where the previous run left off.
 export const resumeInterruptedIngest = async () => {
@@ -90,9 +90,7 @@ const runIngestUnlocked = async (clearOldJobs: boolean) => {
       await clearJobs(pool);
     }
 
-    for (const row of rows) {
-      await upsertJob(pool, row, run.started_at);
-    }
+    await upsertJobs(pool, rows, run.started_at);
 
     const toEnrich = await selectRowsToEnrich(pool);
     const limit = pLimit(env.CRAWL_CONCURRENCY);

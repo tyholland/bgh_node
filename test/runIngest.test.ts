@@ -5,7 +5,7 @@ vi.mock("../src/db/client", () => ({ instance: vi.fn() }));
 vi.mock("../src/db/jobs.repo", () => ({
   clearJobs: vi.fn(),
   selectRowsToEnrich: vi.fn(),
-  upsertJob: vi.fn(),
+  upsertJobs: vi.fn(),
   writeJobDetails: vi.fn(),
 }));
 vi.mock("../src/db/runs.repo", () => ({
@@ -22,7 +22,7 @@ import { instance } from "../src/db/client";
 import {
   clearJobs,
   selectRowsToEnrich,
-  upsertJob,
+  upsertJobs,
   writeJobDetails,
 } from "../src/db/jobs.repo";
 import {
@@ -61,7 +61,7 @@ describe("runIngest", () => {
     vi.mocked(abandonRun).mockResolvedValue(undefined);
     vi.mocked(clearJobs).mockResolvedValue(undefined);
     vi.mocked(selectRowsToEnrich).mockResolvedValue([]);
-    vi.mocked(upsertJob).mockResolvedValue(undefined);
+    vi.mocked(upsertJobs).mockResolvedValue(undefined);
     vi.mocked(writeJobDetails).mockResolvedValue(undefined);
     vi.mocked(fetchAndNormalizeCsv).mockResolvedValue([]);
     vi.mocked(enrichJob).mockResolvedValue({ status: "ok", details: null });
@@ -123,7 +123,7 @@ describe("resumeInterruptedIngest", () => {
     vi.mocked(abandonRun).mockResolvedValue(undefined);
     vi.mocked(clearJobs).mockResolvedValue(undefined);
     vi.mocked(selectRowsToEnrich).mockResolvedValue([]);
-    vi.mocked(upsertJob).mockResolvedValue(undefined);
+    vi.mocked(upsertJobs).mockResolvedValue(undefined);
     vi.mocked(writeJobDetails).mockResolvedValue(undefined);
     vi.mocked(fetchAndNormalizeCsv).mockResolvedValue([]);
     vi.mocked(enrichJob).mockResolvedValue({ status: "ok", details: null });

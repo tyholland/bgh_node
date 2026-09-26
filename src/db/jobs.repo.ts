@@ -14,14 +14,44 @@ export const clearJobs = async (pool: Pool) => {
   await pool.query(`TRUNCATE TABLE jobs`);
 };
 
-export const upsertJob = async (
+// Rows must already be deduped by Link (normalizeAndDedupeRows guarantees
+// this for a full ingest) — ON CONFLICT can't affect the same row twice
+// within a single multi-row INSERT.
+const UPSERT_JOBS_BATCH_SIZE = 500;
+const UPSERT_JOBS_COLUMNS_PER_ROW = 7;
+
+const upsertJobsBatch = async (
   pool: Pool,
-  row: CsvRow,
+  rows: CsvRow[],
   runStartedAt: string,
 ) => {
+  const placeholders: string[] = [];
+  const values: (string | null)[] = [];
+
+  rows.forEach((row, i) => {
+    const base = i * UPSERT_JOBS_COLUMNS_PER_ROW;
+    const [p1, p2, p3, p4, p5, p6, p7] = Array.from(
+      { length: UPSERT_JOBS_COLUMNS_PER_ROW },
+      (_, offset) => `$${base + offset + 1}`,
+    );
+
+    placeholders.push(
+      `(${p1}, ${p2}, ${p3}, ${p4}, ${p5}, ${p6}, ${p7}, ${p7})`,
+    );
+    values.push(
+      row.Link,
+      row["Role Name"],
+      row["Primary Industry"],
+      row.Company,
+      row.Scrape_DateTime || null,
+      row.Scrape_Date,
+      runStartedAt,
+    );
+  });
+
   await pool.query(
     `INSERT INTO jobs (link, role_name, primary_industry, company, scrape_datetime, scrape_date, last_seen_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+     VALUES ${placeholders.join(", ")}
      ON CONFLICT (link) DO UPDATE SET
        role_name = EXCLUDED.role_name,
        primary_industry = EXCLUDED.primary_industry,
@@ -30,16 +60,22 @@ export const upsertJob = async (
        scrape_date = EXCLUDED.scrape_date,
        last_seen_at = EXCLUDED.last_seen_at,
        updated_at = EXCLUDED.updated_at`,
-    [
-      row.Link,
-      row["Role Name"],
-      row["Primary Industry"],
-      row.Company,
-      row.Scrape_DateTime || null,
-      row.Scrape_Date,
-      runStartedAt,
-    ],
+    values,
   );
+};
+
+export const upsertJobs = async (
+  pool: Pool,
+  rows: CsvRow[],
+  runStartedAt: string,
+) => {
+  for (let i = 0; i < rows.length; i += UPSERT_JOBS_BATCH_SIZE) {
+    await upsertJobsBatch(
+      pool,
+      rows.slice(i, i + UPSERT_JOBS_BATCH_SIZE),
+      runStartedAt,
+    );
+  }
 };
 
 export const selectRowsToEnrich = async (pool: Pool): Promise<JobRecord[]> => {
