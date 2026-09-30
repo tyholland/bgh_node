@@ -90,6 +90,7 @@ export interface UserRecord {
   phone_number: string | null;
   photo_url: string | null;
   provider_id: string;
+  email_notifications: boolean;
   created_at: string;
   updated_at: string;
 }

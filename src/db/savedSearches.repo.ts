@@ -47,8 +47,9 @@ export interface SavedSearchWithOwner extends SavedSearchRecord {
   display_name: string | null;
 }
 
-// Every saved search belonging to a user with an email on file — the source
-// list for the saved-search digest email.
+// Every saved search belonging to a user with an email on file who has not
+// opted out — the source list for the saved-search digest email. See
+// BACKEND_REPO_PLAN.md §5 notification gating rule.
 export const listSavedSearchesForDigest = async (
   pool: Pool,
 ): Promise<SavedSearchWithOwner[]> => {
@@ -56,7 +57,7 @@ export const listSavedSearchesForDigest = async (
     `SELECT s.*, u.email, u.display_name
      FROM saved_searches s
      JOIN users_bgh u ON u.uid = s.uid
-     WHERE u.email IS NOT NULL AND u.email <> ''
+     WHERE u.email IS NOT NULL AND u.email <> '' AND u.email_notifications = true
      ORDER BY s.uid, s.created_at ASC`,
   );
 
