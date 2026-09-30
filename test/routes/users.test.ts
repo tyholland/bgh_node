@@ -6,6 +6,7 @@ vi.mock("../../src/db/client", () => ({ instance: vi.fn() }));
 vi.mock("../../src/db/users.repo", () => ({
   getUserByUid: vi.fn(),
   upsertUser: vi.fn(),
+  updateUserPartial: vi.fn(),
 }));
 vi.mock("../../src/auth/verifyIdToken", () => ({
   requireFirebaseAuth: (_req: Request, res: Response, next: NextFunction) => {
@@ -15,7 +16,11 @@ vi.mock("../../src/auth/verifyIdToken", () => ({
 }));
 
 import { instance } from "../../src/db/client";
-import { getUserByUid, upsertUser } from "../../src/db/users.repo";
+import {
+  getUserByUid,
+  updateUserPartial,
+  upsertUser,
+} from "../../src/db/users.repo";
 import { usersRoutes } from "../../src/routes/users";
 import type { UserRecord } from "../../src/types";
 
@@ -37,11 +42,12 @@ const validProfile = {
 
 const fakeUser: UserRecord = {
   uid: "uid-123",
-  email: null,
-  display_name: null,
+  email: "a@example.com",
+  display_name: "A",
   phone_number: null,
   photo_url: null,
   provider_id: "password",
+  email_notifications: true,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -83,6 +89,49 @@ describe("POST /v1/users", () => {
   });
 });
 
+describe("GET /v1/users/:uid", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(instance).mockReturnValue({} as never);
+  });
+
+  it("rejects a uid that doesn't match the authenticated caller", async () => {
+    const app = buildApp();
+
+    const res = await request(app).get("/v1/users/someone-else");
+
+    expect(res.status).toBe(403);
+    expect(getUserByUid).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the profile doesn't exist yet", async () => {
+    vi.mocked(getUserByUid).mockResolvedValue(null);
+    const app = buildApp();
+
+    const res = await request(app).get("/v1/users/uid-123");
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns the profile including emailNotifications", async () => {
+    vi.mocked(getUserByUid).mockResolvedValue(fakeUser);
+    const app = buildApp();
+
+    const res = await request(app).get("/v1/users/uid-123");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      uid: "uid-123",
+      email: "a@example.com",
+      displayName: "A",
+      phoneNumber: null,
+      photoURL: null,
+      providerId: "password",
+      emailNotifications: true,
+    });
+  });
+});
+
 describe("PATCH /v1/users/:uid", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -110,7 +159,7 @@ describe("PATCH /v1/users/:uid", () => {
     expect(res.status).toBe(403);
   });
 
-  it("updates the profile when it exists", async () => {
+  it("updates the full profile when it exists", async () => {
     vi.mocked(getUserByUid).mockResolvedValue(fakeUser);
     const app = buildApp();
 
@@ -119,6 +168,38 @@ describe("PATCH /v1/users/:uid", () => {
       .send(validProfile);
 
     expect(res.status).toBe(200);
-    expect(upsertUser).toHaveBeenCalledWith({}, validProfile);
+    expect(updateUserPartial).toHaveBeenCalledWith({}, "uid-123", {
+      email: "a@example.com",
+      displayName: "A",
+      phoneNumber: null,
+      photoURL: null,
+      providerId: "password",
+    });
+  });
+
+  it("merges a partial emailNotifications-only body without touching other fields", async () => {
+    vi.mocked(getUserByUid).mockResolvedValue(fakeUser);
+    const app = buildApp();
+
+    const res = await request(app)
+      .patch("/v1/users/uid-123")
+      .send({ emailNotifications: false });
+
+    expect(res.status).toBe(200);
+    expect(updateUserPartial).toHaveBeenCalledWith({}, "uid-123", {
+      emailNotifications: false,
+    });
+  });
+
+  it("rejects a body uid that doesn't match the URL param", async () => {
+    vi.mocked(getUserByUid).mockResolvedValue(fakeUser);
+    const app = buildApp();
+
+    const res = await request(app)
+      .patch("/v1/users/uid-123")
+      .send({ uid: "someone-else", emailNotifications: false });
+
+    expect(res.status).toBe(403);
+    expect(updateUserPartial).not.toHaveBeenCalled();
   });
 });
