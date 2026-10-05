@@ -73,9 +73,16 @@ export const buildBaseConditions = (input: JobsQueryInput): SqlConditions => {
     conditions.push(`last_seen_at >= $${values.length}`);
   }
 
+  // Unlike company / industry / keyword (OR within the list), search is AND:
+  // every comma-separated term must appear in role_name, in any order.
   if (input.search) {
-    values.push(input.search.trim().toLowerCase());
-    conditions.push(`position($${values.length} in lower(role_name)) > 0`);
+    const wanted = splitList(input.search);
+    if (wanted.length) {
+      values.push(wanted);
+      conditions.push(
+        `NOT EXISTS (SELECT 1 FROM unnest($${values.length}::text[]) term WHERE position(term in lower(role_name)) = 0)`,
+      );
+    }
   }
 
   if (input.keyword) {
