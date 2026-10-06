@@ -93,12 +93,20 @@ describe("buildBaseConditions", () => {
     expect(values).toEqual(["2026-09-10"]);
   });
 
-  it("adds a substring search condition on role_name", () => {
+  it("adds a NOT EXISTS clause requiring every search term in role_name", () => {
     const { clause, values } = buildBaseConditions(
       query({ search: "  Engineer " }),
     );
-    expect(clause).toContain("position($1 in lower(role_name)) > 0");
-    expect(values).toEqual(["engineer"]);
+    expect(clause).toContain("NOT EXISTS (SELECT 1 FROM unnest($1::text[])");
+    expect(values).toEqual([["engineer"]]);
+  });
+
+  it("ANDs every comma-separated search term instead of OR-ing them", () => {
+    const { clause, values } = buildBaseConditions(
+      query({ search: "Senior, Remote" }),
+    );
+    expect(clause).toContain("NOT EXISTS (SELECT 1 FROM unnest($1::text[])");
+    expect(values).toEqual([["senior", "remote"]]);
   });
 
   it("adds an EXISTS clause for a comma-separated keyword list", () => {
@@ -143,10 +151,10 @@ describe("buildFullConditions", () => {
         industry: "Technology",
       }),
     );
-    expect(clause).toContain("position($1 in lower(role_name)) > 0");
+    expect(clause).toContain("NOT EXISTS (SELECT 1 FROM unnest($1::text[])");
     expect(clause).toContain("lower(company) = ANY($2::text[])");
     expect(clause).toContain("lower(primary_industry) = ANY($3::text[])");
-    expect(values).toEqual(["engineer", ["acme", "globex"], ["technology"]]);
+    expect(values).toEqual([["engineer"], ["acme", "globex"], ["technology"]]);
   });
 
   it("matches base conditions when no company/industry filter is set", () => {
