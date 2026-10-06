@@ -14,6 +14,7 @@ import { savedSearchesRoutes } from "./routes/savedSearches";
 import { resumeInterruptedIngest, runIngest } from "./ingest/run";
 import { runSavedSearchDigest } from "./digest/savedSearchDigest";
 import { runWeeklyOpportunitiesEmail } from "./digest/weeklyOpportunitiesEmail";
+import { runSemiMonthlyUpdateEmail } from "./digest/semiMonthlyUpdateEmail";
 
 const app: Express = express();
 
@@ -84,6 +85,16 @@ const start = async () => {
     () => {
       runWeeklyOpportunitiesEmail(pool).catch((err) =>
         logger.error("Scheduled weekly opportunities email run failed", err),
+      );
+    },
+    { timezone: "America/New_York" },
+  );
+
+  cron.schedule(
+    env.SEMI_MONTHLY_EMAIL_CRON,
+    () => {
+      runSemiMonthlyUpdateEmail(pool).catch((err) =>
+        logger.error("Scheduled semi-monthly update email run failed", err),
       );
     },
     { timezone: "America/New_York" },
