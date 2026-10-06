@@ -20,15 +20,17 @@ export const isSemiMonthlyUpdateEmailDay = (
 
 export const buildSemiMonthlyUpdateEmail = (
   displayName: string | null,
+  now: dayjs.Dayjs = dayjs(),
 ): DigestEmail => {
   const firstName = getFirstName(displayName);
   const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const formattedDate = now.format("MMMM D, YYYY");
 
   const subject = "Your BGH Scout feature update is on LinkedIn";
 
   const html = `
     <p>${greeting}</p>
-    <p>Thank you for using BGH Scout! In this semi-monthly update, we want to point you to the best place to keep up with everything new.</p>
+    <p>Thank you for using BGH Scout! In this semi-monthly update for ${formattedDate}, we want to point you to the best place to keep up with everything new.</p>
     <p>Our LinkedIn group is where we share all current and upcoming BGH Scout features. Join us here:<br>
     <a href="${LINKEDIN_GROUP_URL}">${LINKEDIN_GROUP_URL}</a></p>
     <p>Thanks again for being part of BGH Scout.</p>
@@ -39,7 +41,7 @@ export const buildSemiMonthlyUpdateEmail = (
   const text = [
     greeting,
     "",
-    "Thank you for using BGH Scout! In this semi-monthly update, we want to point you to the best place to keep up with everything new.",
+    `Thank you for using BGH Scout! In this semi-monthly update for ${formattedDate}, we want to point you to the best place to keep up with everything new.`,
     "",
     "Our LinkedIn group is where we share all current and upcoming BGH Scout features. Join us here:",
     LINKEDIN_GROUP_URL,
@@ -71,7 +73,7 @@ export const runSemiMonthlyUpdateEmail = async (
 
   for (const user of users) {
     try {
-      const email = buildSemiMonthlyUpdateEmail(user.display_name);
+      const email = buildSemiMonthlyUpdateEmail(user.display_name, now);
 
       await transport.sendMail({
         from: env.SENDER_EMAIL,
