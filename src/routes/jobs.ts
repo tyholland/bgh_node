@@ -1,7 +1,11 @@
 import { Express, Request, Response } from "express";
 import dayjs from "dayjs";
 import { instance } from "../db/client";
-import { selectJobsFacets, selectJobsPage } from "../db/jobs.repo";
+import {
+  selectJobById,
+  selectJobsFacets,
+  selectJobsPage,
+} from "../db/jobs.repo";
 import { getLastSuccessfulRun } from "../db/runs.repo";
 import { buildETag } from "../lib/cache";
 import { clampLimit, clampPage, JobsQueryInput } from "../db/jobsQuery";
@@ -9,6 +13,7 @@ import { logger } from "../lib/logger";
 import { JobRecord, JobRow, JobsResponse } from "../types";
 
 const toJobRow = (record: JobRecord): JobRow => ({
+  id: record.id,
   "Role Name": record.role_name,
   "Primary Industry": record.primary_industry || "",
   Scrape_DateTime: record.scrape_datetime
@@ -93,6 +98,30 @@ const getJobsHandler = async (req: Request, res: Response) => {
   res.type("application/json").status(200).send(json);
 };
 
+// Single job for the frontend's /jobs/[id] detail page (BACKEND_REPO_PLAN.md
+// §5 in the frontend repo) — public, no auth, same as /v1/jobs. 404s for an
+// unknown id *or* one that's no longer "active" (selectJobById applies the
+// same details_status/last_seen_at filtering as the list endpoint), so a
+// delisted job's detail page stops resolving at the same time it drops out
+// of search results and the sitemap, rather than staying indexed forever.
+const getJobByIdHandler = async (req: Request, res: Response) => {
+  const pool = instance();
+  const lastRun = await getLastSuccessfulRun(pool);
+  const activeSince = lastRun ? lastRun.started_at : null;
+
+  const record = await selectJobById(pool, req.params.id, activeSince);
+
+  if (!record) {
+    return res.status(404).json({ error: "not found" });
+  }
+
+  res.set("Cache-Control", "public, s-maxage=900, stale-while-revalidate=3600");
+  res
+    .type("application/json")
+    .status(200)
+    .send(JSON.stringify(toJobRow(record)));
+};
+
 export const jobsRoutes = (app: Express) => {
   app.get("/v1/jobs", (req, res) => {
     getJobsHandler(req, res).catch((err) => {
@@ -100,6 +129,15 @@ export const jobsRoutes = (app: Express) => {
       res
         .status(500)
         .json({ err: "Internal server error", action: "Get jobs" });
+    });
+  });
+
+  app.get("/v1/jobs/:id", (req, res) => {
+    getJobByIdHandler(req, res).catch((err) => {
+      logger.error("Failed to get job by id", err);
+      res
+        .status(500)
+        .json({ err: "Internal server error", action: "Get job by id" });
     });
   });
 };
