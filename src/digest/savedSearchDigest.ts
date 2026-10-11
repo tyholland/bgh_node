@@ -15,6 +15,8 @@ import { JobRecord, UrlParams } from "../types";
 // to be useful, small enough the email doesn't turn into a second job board.
 const DIGEST_PREVIEW_LIMIT = 5;
 
+const BGH_LINKEDIN_GROUP_URL = "https://www.linkedin.com/groups/40962102/";
+
 const toJobsQueryInput = (
   params: UrlParams,
   activeSince: string | null,
@@ -103,6 +105,7 @@ export const buildDigestEmail = (
         )
         .join("\n      ")}
     </ul>
+    <p>Want to learn more about everything BGH Scout offers? Join the <a href="${BGH_LINKEDIN_GROUP_URL}">BGH LinkedIn Group</a> to stay up to date on all our features.</p>
     <p>Thanks,</p>
     <p>BGH Scout Team</p>
   `.trim();
@@ -119,6 +122,8 @@ export const buildDigestEmail = (
       `${r.name} (${r.url}) — ${r.count} ${resultWord(r.count)}`,
       ...jobPreviewText(r.topJobs),
     ]),
+    "",
+    `Want to learn more about everything BGH Scout offers? Join the BGH LinkedIn Group to stay up to date on all our features: ${BGH_LINKEDIN_GROUP_URL}`,
     "",
     "Thanks,",
     "BGH Scout Team",
