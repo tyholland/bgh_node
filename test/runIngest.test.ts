@@ -3,7 +3,7 @@ import type { IngestRun } from "../src/types";
 
 vi.mock("../src/db/client", () => ({ instance: vi.fn() }));
 vi.mock("../src/db/jobs.repo", () => ({
-  clearJobs: vi.fn(),
+  pruneStaleJobs: vi.fn(),
   selectRowsToEnrich: vi.fn(),
   upsertJobs: vi.fn(),
   writeJobDetails: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock("../src/ingest/revalidate", () => ({ revalidateFrontend: vi.fn() }));
 
 import { instance } from "../src/db/client";
 import {
-  clearJobs,
+  pruneStaleJobs,
   selectRowsToEnrich,
   upsertJobs,
   writeJobDetails,
@@ -59,7 +59,7 @@ describe("runIngest", () => {
     vi.mocked(finishRun).mockResolvedValue(undefined);
     vi.mocked(getIncompleteRun).mockResolvedValue(null);
     vi.mocked(abandonRun).mockResolvedValue(undefined);
-    vi.mocked(clearJobs).mockResolvedValue(undefined);
+    vi.mocked(pruneStaleJobs).mockResolvedValue(0);
     vi.mocked(selectRowsToEnrich).mockResolvedValue([]);
     vi.mocked(upsertJobs).mockResolvedValue(undefined);
     vi.mocked(writeJobDetails).mockResolvedValue(undefined);
@@ -68,16 +68,21 @@ describe("runIngest", () => {
     vi.mocked(revalidateFrontend).mockResolvedValue(undefined);
   });
 
-  it("defaults to NOT clearing existing jobs when no argument is passed", async () => {
+  it("upserts first, then prunes jobs that have fallen out of the sheet", async () => {
+    const callOrder: string[] = [];
+    vi.mocked(upsertJobs).mockImplementation(async () => {
+      callOrder.push("upsert");
+    });
+    vi.mocked(pruneStaleJobs).mockImplementation(async () => {
+      callOrder.push("prune");
+      return 2;
+    });
+
     await runIngest();
 
-    expect(clearJobs).not.toHaveBeenCalled();
-  });
-
-  it("clears jobs only when explicitly requested", async () => {
-    await runIngest(true);
-
-    expect(clearJobs).toHaveBeenCalledTimes(1);
+    expect(upsertJobs).toHaveBeenCalledTimes(1);
+    expect(pruneStaleJobs).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(["upsert", "prune"]);
   });
 
   it("rejects a run started while one is already in progress", async () => {
@@ -121,7 +126,7 @@ describe("resumeInterruptedIngest", () => {
     vi.mocked(startRun).mockResolvedValue(fakeRun);
     vi.mocked(finishRun).mockResolvedValue(undefined);
     vi.mocked(abandonRun).mockResolvedValue(undefined);
-    vi.mocked(clearJobs).mockResolvedValue(undefined);
+    vi.mocked(pruneStaleJobs).mockResolvedValue(0);
     vi.mocked(selectRowsToEnrich).mockResolvedValue([]);
     vi.mocked(upsertJobs).mockResolvedValue(undefined);
     vi.mocked(writeJobDetails).mockResolvedValue(undefined);

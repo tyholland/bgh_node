@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../src/db/jobs.repo", () => ({ countJobs: vi.fn() }));
+vi.mock("../src/db/jobs.repo", () => ({
+  countJobs: vi.fn(),
+  selectJobsPage: vi.fn(),
+}));
 vi.mock("../src/db/savedSearches.repo", () => ({
   listSavedSearchesForDigest: vi.fn(),
 }));
@@ -11,7 +14,7 @@ vi.mock("../src/lib/mail", () => ({
   buildMailTransport: () => ({ sendMail }),
 }));
 
-import { countJobs } from "../src/db/jobs.repo";
+import { countJobs, selectJobsPage } from "../src/db/jobs.repo";
 import { getLastSuccessfulRun } from "../src/db/runs.repo";
 import { listSavedSearchesForDigest } from "../src/db/savedSearches.repo";
 import {
@@ -35,7 +38,12 @@ describe("buildSavedSearchUrl", () => {
 describe("buildDigestEmail", () => {
   it("greets the user by display name when present", () => {
     const email = buildDigestEmail("Jamie", [
-      { name: "Engineering roles", url: "https://x/?a=1", count: 3 },
+      {
+        name: "Engineering roles",
+        url: "https://x/?a=1",
+        count: 3,
+        topJobs: [],
+      },
     ]);
 
     expect(email.html).toContain("Hi Jamie,");
@@ -44,7 +52,12 @@ describe("buildDigestEmail", () => {
 
   it("falls back to a generic greeting without a display name", () => {
     const email = buildDigestEmail(null, [
-      { name: "Engineering roles", url: "https://x/?a=1", count: 0 },
+      {
+        name: "Engineering roles",
+        url: "https://x/?a=1",
+        count: 0,
+        topJobs: [],
+      },
     ]);
 
     expect(email.html).toContain("Hi,");
@@ -52,7 +65,12 @@ describe("buildDigestEmail", () => {
 
   it("links the saved search name and lists its result count", () => {
     const email = buildDigestEmail("Jamie", [
-      { name: "Engineering roles", url: "https://x/?a=1", count: 1 },
+      {
+        name: "Engineering roles",
+        url: "https://x/?a=1",
+        count: 1,
+        topJobs: [],
+      },
     ]);
 
     expect(email.html).toContain(
@@ -62,13 +80,70 @@ describe("buildDigestEmail", () => {
     expect(email.html).not.toContain("1 results");
   });
 
+  it("lists each previewed job under its saved search", () => {
+    const email = buildDigestEmail("Jamie", [
+      {
+        name: "Engineering roles",
+        url: "https://x/?a=1",
+        count: 2,
+        topJobs: [
+          {
+            role: "Backend Engineer",
+            company: "Globex",
+            url: "https://x/jobs/abc123",
+          },
+          {
+            role: "Frontend Engineer",
+            company: "Initech",
+            url: "https://x/jobs/def456",
+          },
+        ],
+      },
+    ]);
+
+    expect(email.html).toContain(
+      '<a href="https://x/jobs/abc123">Backend Engineer at Globex</a>',
+    );
+    expect(email.html).toContain(
+      '<a href="https://x/jobs/def456">Frontend Engineer at Initech</a>',
+    );
+    expect(email.text).toContain(
+      "Backend Engineer at Globex (https://x/jobs/abc123)",
+    );
+  });
+
+  it("omits the nested job list when there are no previewed jobs", () => {
+    const email = buildDigestEmail("Jamie", [
+      {
+        name: "Engineering roles",
+        url: "https://x/?a=1",
+        count: 0,
+        topJobs: [],
+      },
+    ]);
+
+    expect(email.html).not.toContain("<ul></ul>");
+  });
+
   it("escapes user-controlled values in the HTML body", () => {
     const email = buildDigestEmail("<script>alert(1)</script>", [
-      { name: "<b>xss</b>", url: "https://x/?a=1", count: 2 },
+      {
+        name: "<b>xss</b>",
+        url: "https://x/?a=1",
+        count: 2,
+        topJobs: [
+          {
+            role: "<i>role</i>",
+            company: "<i>co</i>",
+            url: "https://x/jobs/1",
+          },
+        ],
+      },
     ]);
 
     expect(email.html).not.toContain("<script>");
     expect(email.html).not.toContain("<b>xss</b>");
+    expect(email.html).not.toContain("<i>role</i>");
     expect(email.html).toContain("&lt;script&gt;");
   });
 
@@ -85,6 +160,7 @@ describe("runSavedSearchDigest", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getLastSuccessfulRun).mockResolvedValue(null);
+    vi.mocked(selectJobsPage).mockResolvedValue([]);
   });
 
   it("does nothing when no one has a saved search", async () => {
@@ -143,6 +219,44 @@ describe("runSavedSearchDigest", () => {
       (call) => call[0].to === "b@example.com",
     );
     expect(uid2Call?.[0].html).toContain("Saved search");
+  });
+
+  it("includes previewed jobs for each saved search in the sent email", async () => {
+    const rows: SavedSearchWithOwner[] = [
+      {
+        id: "1",
+        uid: "uid-1",
+        name: "Engineering",
+        params: { keyword: "engineer" },
+        created_at: new Date().toISOString(),
+        email: "a@example.com",
+        display_name: "Alex",
+      },
+    ];
+    vi.mocked(listSavedSearchesForDigest).mockResolvedValue(rows);
+    vi.mocked(countJobs).mockResolvedValue(1);
+    vi.mocked(selectJobsPage).mockResolvedValue([
+      {
+        id: "abc123",
+        link: "https://jobs.example/backend-engineer",
+        role_name: "Backend Engineer",
+        primary_industry: "Software",
+        company: "Globex",
+        scrape_datetime: new Date().toISOString(),
+        scrape_date: "2026/10/10",
+        details: null,
+        details_status: "ok",
+        details_fetched_at: null,
+        first_seen_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+
+    await runSavedSearchDigest({} as never);
+
+    const call = sendMail.mock.calls.find((c) => c[0].to === "a@example.com");
+    expect(call?.[0].html).toContain("Backend Engineer at Globex");
   });
 
   it("keeps sending to other users when one send fails", async () => {

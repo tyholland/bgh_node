@@ -1,7 +1,7 @@
 import pLimit from "p-limit";
 import { instance } from "../db/client";
 import {
-  clearJobs,
+  pruneStaleJobs,
   selectRowsToEnrich,
   upsertJobs,
   writeJobDetails,
@@ -58,7 +58,7 @@ export const resumeInterruptedIngest = async () => {
   await runIngest();
 };
 
-export const runIngest = async (clearOldJobs = false) => {
+export const runIngest = async () => {
   if (isRunning) {
     throw new Error("Ingest run already in progress");
   }
@@ -66,13 +66,13 @@ export const runIngest = async (clearOldJobs = false) => {
   isRunning = true;
 
   try {
-    await runIngestUnlocked(clearOldJobs);
+    await runIngestUnlocked();
   } finally {
     isRunning = false;
   }
 };
 
-const runIngestUnlocked = async (clearOldJobs: boolean) => {
+const runIngestUnlocked = async () => {
   const pool = instance();
   const run = await startRun(pool);
 
@@ -86,11 +86,14 @@ const runIngestUnlocked = async (clearOldJobs: boolean) => {
     const rows = await fetchAndNormalizeCsv();
     rowsIn = rows.length;
 
-    if (clearOldJobs) {
-      await clearJobs(pool);
-    }
-
     await upsertJobs(pool, rows, run.started_at);
+
+    const prunedCount = await pruneStaleJobs(pool);
+    if (prunedCount > 0) {
+      logger.info(
+        `Pruned ${prunedCount} job(s) not seen in the sheet for a while`,
+      );
+    }
 
     const toEnrich = await selectRowsToEnrich(pool);
     const limit = pLimit(env.CRAWL_CONCURRENCY);

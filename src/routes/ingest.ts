@@ -43,11 +43,10 @@ export const ingestRoutes = (app: Express) => {
     }
 
     const requestId = randomUUID();
-    const clearOldJobs = req.body?.clear === true;
 
     res.status(202).json({ ok: true, runId: requestId });
 
-    runIngest(clearOldJobs).catch((err) => {
+    runIngest().catch((err) => {
       logger.error(`Triggered ingest run ${requestId} failed`, err);
     });
   });

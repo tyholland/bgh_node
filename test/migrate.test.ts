@@ -9,6 +9,8 @@ const MIGRATION_FILES = [
   "004_jobs_query_indexes.sql",
   "005_user_email_notifications.sql",
   "006_jobs_id.sql",
+  "007_saved_jobs.sql",
+  "008_job_view_counts.sql",
 ];
 
 const makeFakePool = (appliedFilenames: string[]) => {

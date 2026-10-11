@@ -11,8 +11,23 @@ import {
   sortClause,
 } from "./jobsQuery";
 
-export const clearJobs = async (pool: Pool) => {
-  await pool.query(`TRUNCATE TABLE jobs`);
+// Replaces the old full-table TRUNCATE: rather than wiping every row and
+// relying on the next upsert to repopulate everything (which briefly deletes
+// rows with no transactional relationship to the reinsert, and resets
+// anything that isn't re-upserted, e.g. a FK'd row), this only removes jobs
+// that have genuinely fallen out of the sheet — still absent after
+// JOBS_STALE_MONTHS of consecutive runs, not just this one. `upsertJobs`
+// bumps `last_seen_at` to "now" for every row still present in the CSV, so a
+// job that's still actively listed never reaches this cutoff no matter how
+// old its original posting is; only one that's stopped appearing does.
+export const pruneStaleJobs = async (pool: Pool): Promise<number> => {
+  const cutoff = dayjs().subtract(env.JOBS_STALE_MONTHS, "month").toISOString();
+
+  const result = await pool.query(`DELETE FROM jobs WHERE last_seen_at < $1`, [
+    cutoff,
+  ]);
+
+  return result.rowCount || 0;
 };
 
 // Rows must already be deduped by Link (normalizeAndDedupeRows guarantees

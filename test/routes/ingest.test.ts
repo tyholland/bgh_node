@@ -43,7 +43,7 @@ describe("POST /v1/ingest", () => {
     expect(res.status).toBe(401);
   });
 
-  it("triggers a run without clearing jobs by default", async () => {
+  it("triggers a run", async () => {
     const app = buildApp();
 
     const res = await request(app)
@@ -51,19 +51,7 @@ describe("POST /v1/ingest", () => {
       .set("Authorization", "Bearer test-secret");
 
     expect(res.status).toBe(202);
-    expect(runIngest).toHaveBeenCalledWith(false);
-  });
-
-  it("clears jobs only when explicitly requested in the body", async () => {
-    const app = buildApp();
-
-    const res = await request(app)
-      .post("/v1/ingest")
-      .set("Authorization", "Bearer test-secret")
-      .send({ clear: true });
-
-    expect(res.status).toBe(202);
-    expect(runIngest).toHaveBeenCalledWith(true);
+    expect(runIngest).toHaveBeenCalledWith();
   });
 
   it("returns 409 when a run is already in progress", async () => {

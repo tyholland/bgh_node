@@ -6,6 +6,7 @@ import {
   selectJobsFacets,
   selectJobsPage,
 } from "../db/jobs.repo";
+import { incrementAndGetViewCount } from "../db/jobViewCounts.repo";
 import { getLastSuccessfulRun } from "../db/runs.repo";
 import { buildETag } from "../lib/cache";
 import { clampLimit, clampPage, JobsQueryInput } from "../db/jobsQuery";
@@ -115,11 +116,13 @@ const getJobByIdHandler = async (req: Request, res: Response) => {
     return res.status(404).json({ error: "not found" });
   }
 
+  const viewCount = await incrementAndGetViewCount(pool, record.id);
+
   res.set("Cache-Control", "public, s-maxage=900, stale-while-revalidate=3600");
   res
     .type("application/json")
     .status(200)
-    .send(JSON.stringify(toJobRow(record)));
+    .send(JSON.stringify({ ...toJobRow(record), viewCount }));
 };
 
 export const jobsRoutes = (app: Express) => {

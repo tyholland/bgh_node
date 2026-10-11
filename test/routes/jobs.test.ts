@@ -9,6 +9,9 @@ vi.mock("../../src/db/jobs.repo", () => ({
   selectJobsPage: vi.fn(),
 }));
 vi.mock("../../src/db/runs.repo", () => ({ getLastSuccessfulRun: vi.fn() }));
+vi.mock("../../src/db/jobViewCounts.repo", () => ({
+  incrementAndGetViewCount: vi.fn(),
+}));
 
 import { instance } from "../../src/db/client";
 import {
@@ -16,6 +19,7 @@ import {
   selectJobsFacets,
   selectJobsPage,
 } from "../../src/db/jobs.repo";
+import { incrementAndGetViewCount } from "../../src/db/jobViewCounts.repo";
 import { getLastSuccessfulRun } from "../../src/db/runs.repo";
 import { jobsRoutes } from "../../src/routes/jobs";
 import type { JobRecord } from "../../src/types";
@@ -112,6 +116,7 @@ describe("GET /v1/jobs/:id", () => {
     vi.clearAllMocks();
     vi.mocked(instance).mockReturnValue({} as never);
     vi.mocked(getLastSuccessfulRun).mockResolvedValue(null);
+    vi.mocked(incrementAndGetViewCount).mockResolvedValue(1);
   });
 
   it("returns the job when the id exists and is still active", async () => {
@@ -124,6 +129,26 @@ describe("GET /v1/jobs/:id", () => {
     expect(res.body.id).toBe("abc123");
     expect(res.body.Link).toBe("https://careers.acme.com/jobs/1");
     expect(selectJobById).toHaveBeenCalledWith({}, "abc123", null);
+  });
+
+  it("includes an incremented view count", async () => {
+    vi.mocked(selectJobById).mockResolvedValue(record());
+    vi.mocked(incrementAndGetViewCount).mockResolvedValue(43);
+    const app = buildApp();
+
+    const res = await request(app).get("/v1/jobs/abc123");
+
+    expect(res.body.viewCount).toBe(43);
+    expect(incrementAndGetViewCount).toHaveBeenCalledWith({}, "abc123");
+  });
+
+  it("does not increment the view count for an unknown id", async () => {
+    vi.mocked(selectJobById).mockResolvedValue(null);
+    const app = buildApp();
+
+    await request(app).get("/v1/jobs/does-not-exist");
+
+    expect(incrementAndGetViewCount).not.toHaveBeenCalled();
   });
 
   it("includes Details when the job is enriched", async () => {

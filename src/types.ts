@@ -27,6 +27,10 @@ export interface JobRow extends CsvRow {
   // the frontend's /jobs/[id] detail page and its JobPosting JSON-LD.
   id: string;
   Details?: JobDetails;
+  // Only ever set on the single-job response (GET /v1/jobs/:id) — see
+  // job_view_counts.repo.ts. Omitted from the list endpoint so browsing a
+  // page of results never inflates a job's count, only visiting it does.
+  viewCount?: number;
 }
 
 export interface JobsResponseMeta {
@@ -114,5 +118,15 @@ export interface SavedSearchRecord {
   uid: string;
   name: string | null;
   params: UrlParams;
+  created_at: string;
+}
+
+export interface SavedJobRecord {
+  id: string;
+  uid: string;
+  job_id: string;
+  role_name: string;
+  company: string | null;
+  link: string;
   created_at: string;
 }
