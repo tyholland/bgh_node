@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { env } from "../lib/env";
 import { CsvRow, DetailsStatus, Facet, JobDetails, JobRecord } from "../types";
 import {
+  buildBaseConditions,
   buildCompanyFacetConditions,
   buildFullConditions,
   buildIndustryFacetConditions,
@@ -10,8 +11,23 @@ import {
   sortClause,
 } from "./jobsQuery";
 
-export const clearJobs = async (pool: Pool) => {
-  await pool.query(`TRUNCATE TABLE jobs`);
+// Replaces the old full-table TRUNCATE: rather than wiping every row and
+// relying on the next upsert to repopulate everything (which briefly deletes
+// rows with no transactional relationship to the reinsert, and resets
+// anything that isn't re-upserted, e.g. a FK'd row), this only removes jobs
+// that have genuinely fallen out of the sheet — still absent after
+// JOBS_STALE_MONTHS of consecutive runs, not just this one. `upsertJobs`
+// bumps `last_seen_at` to "now" for every row still present in the CSV, so a
+// job that's still actively listed never reaches this cutoff no matter how
+// old its original posting is; only one that's stopped appearing does.
+export const pruneStaleJobs = async (pool: Pool): Promise<number> => {
+  const cutoff = dayjs().subtract(env.JOBS_STALE_MONTHS, "month").toISOString();
+
+  const result = await pool.query(`DELETE FROM jobs WHERE last_seen_at < $1`, [
+    cutoff,
+  ]);
+
+  return result.rowCount || 0;
 };
 
 // Rows must already be deduped by Link (normalizeAndDedupeRows guarantees
@@ -213,4 +229,37 @@ export const selectJobsPage = async (
   );
 
   return result.rows;
+};
+
+// Single job for the frontend's /jobs/[id] detail page. Reuses the same
+// "active" definition as the list endpoint (buildBaseConditions:
+// details_status IN ('ok', 'not_found'), and seen in the latest run when
+// activeSince is known) rather than a bare `WHERE id = $1` — a job that's
+// been delisted (dropped from the sheet, so last_seen_at is stale) should
+// 404 here too, the same as it would already have disappeared from
+// /v1/jobs and the sitemap. Without that, the detail page would keep
+// serving an indexed URL for a job that no longer exists anywhere else on
+// the site — a soft-404-shaped problem in the other direction.
+export const selectJobById = async (
+  pool: Pool,
+  id: string,
+  activeSince: string | null,
+): Promise<JobRecord | null> => {
+  const base = buildBaseConditions({
+    activeSince,
+    search: "",
+    keyword: "",
+    company: "",
+    industry: "",
+    date: "",
+    exact: "",
+    sort: "",
+  });
+
+  const result = await pool.query<JobRecord>(
+    `SELECT * FROM jobs WHERE ${base.clause} AND id = $${base.values.length + 1} LIMIT 1`,
+    [...base.values, id],
+  );
+
+  return result.rows[0] ?? null;
 };

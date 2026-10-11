@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { countJobs } from "../db/jobs.repo";
+import { countJobs, selectJobsPage } from "../db/jobs.repo";
 import { JobsQueryInput } from "../db/jobsQuery";
 import {
   listSavedSearchesForDigest,
@@ -9,7 +9,13 @@ import { getLastSuccessfulRun } from "../db/runs.repo";
 import { env } from "../lib/env";
 import { logger } from "../lib/logger";
 import { buildMailTransport } from "../lib/mail";
-import { UrlParams } from "../types";
+import { JobRecord, UrlParams } from "../types";
+
+// How many matching jobs to preview per saved search in the digest — enough
+// to be useful, small enough the email doesn't turn into a second job board.
+const DIGEST_PREVIEW_LIMIT = 5;
+
+const BGH_LINKEDIN_GROUP_URL = "https://www.linkedin.com/groups/40962102/";
 
 const toJobsQueryInput = (
   params: UrlParams,
@@ -46,10 +52,23 @@ const escapeHtml = (value: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+export interface JobPreview {
+  role: string;
+  company: string;
+  url: string;
+}
+
+const toJobPreview = (record: JobRecord): JobPreview => ({
+  role: record.role_name,
+  company: record.company || "",
+  url: `${env.FRONTEND_BASE_URL}/jobs/${record.id}`,
+});
+
 export interface SavedSearchResult {
   name: string;
   url: string;
   count: number;
+  topJobs: JobPreview[];
 }
 
 export interface DigestEmail {
@@ -65,6 +84,16 @@ export const buildDigestEmail = (
   const greeting = displayName ? `Hi ${displayName},` : "Hi,";
   const resultWord = (count: number) => (count === 1 ? "result" : "results");
 
+  const jobPreviewHtml = (jobs: JobPreview[]) =>
+    jobs.length
+      ? `<ul>${jobs
+          .map(
+            (job) =>
+              `<li><a href="${escapeHtml(job.url)}">${escapeHtml(job.role)} at ${escapeHtml(job.company)}</a></li>`,
+          )
+          .join("")}</ul>`
+      : "";
+
   const html = `
     <p>${escapeHtml(greeting)}</p>
     <p>Here's how your saved searches are looking today:</p>
@@ -72,22 +101,29 @@ export const buildDigestEmail = (
       ${results
         .map(
           (r) =>
-            `<li><a href="${escapeHtml(r.url)}">${escapeHtml(r.name)}</a> — ${r.count} ${resultWord(r.count)}</li>`,
+            `<li><a href="${escapeHtml(r.url)}">${escapeHtml(r.name)}</a> — ${r.count} ${resultWord(r.count)}${jobPreviewHtml(r.topJobs)}</li>`,
         )
         .join("\n      ")}
     </ul>
+    <p>Want to learn more about everything BGH Scout offers? Join the <a href="${BGH_LINKEDIN_GROUP_URL}">BGH LinkedIn Group</a> to stay up to date on all our features.</p>
     <p>Thanks,</p>
     <p>BGH Scout Team</p>
   `.trim();
+
+  const jobPreviewText = (jobs: JobPreview[]) =>
+    jobs.map((job) => `  - ${job.role} at ${job.company} (${job.url})`);
 
   const text = [
     greeting,
     "",
     "Here's how your saved searches are looking today:",
     "",
-    ...results.map(
-      (r) => `${r.name} (${r.url}) — ${r.count} ${resultWord(r.count)}`,
-    ),
+    ...results.flatMap((r) => [
+      `${r.name} (${r.url}) — ${r.count} ${resultWord(r.count)}`,
+      ...jobPreviewText(r.topJobs),
+    ]),
+    "",
+    `Want to learn more about everything BGH Scout offers? Join the BGH LinkedIn Group to stay up to date on all our features: ${BGH_LINKEDIN_GROUP_URL}`,
     "",
     "Thanks,",
     "BGH Scout Team",
@@ -140,14 +176,20 @@ export const runSavedSearchDigest = async (pool: Pool): Promise<void> => {
   for (const [uid, user] of groupByUser(rows)) {
     try {
       const results: SavedSearchResult[] = await Promise.all(
-        user.searches.map(async (savedSearch) => ({
-          name: savedSearch.name || "Saved search",
-          url: buildSavedSearchUrl(savedSearch.params),
-          count: await countJobs(
-            pool,
-            toJobsQueryInput(savedSearch.params, activeSince),
-          ),
-        })),
+        user.searches.map(async (savedSearch) => {
+          const queryInput = toJobsQueryInput(savedSearch.params, activeSince);
+          const [count, topJobRecords] = await Promise.all([
+            countJobs(pool, queryInput),
+            selectJobsPage(pool, queryInput, 1, DIGEST_PREVIEW_LIMIT),
+          ]);
+
+          return {
+            name: savedSearch.name || "Saved search",
+            url: buildSavedSearchUrl(savedSearch.params),
+            count,
+            topJobs: topJobRecords.map(toJobPreview),
+          };
+        }),
       );
 
       const email = buildDigestEmail(user.displayName, results);

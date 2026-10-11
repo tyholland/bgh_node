@@ -56,7 +56,6 @@ const envSchema = z.object({
   FRONTEND_BASE_URL: z.string().url().default("https://www.bghscout.com"),
   SAVED_SEARCH_DIGEST_CRON: z.string().default("0 9 * * *"),
   WEEKLY_EMAIL_CRON: z.string().default("0 10 * * 1"),
-  SEMI_MONTHLY_EMAIL_CRON: z.string().default("0 10 * * *"),
 
   FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
 
@@ -69,6 +68,9 @@ const envSchema = z.object({
     ),
   DETAILS_OK_TTL_HOURS: numberFromString(168),
   DETAILS_RETRY_HOURS: numberFromString(6),
+  // A job not seen in the sheet for this long is pruned from `jobs` — see
+  // pruneStaleJobs in src/db/jobs.repo.ts.
+  JOBS_STALE_MONTHS: numberFromString(3),
 });
 
 export type Env = z.infer<typeof envSchema> & {

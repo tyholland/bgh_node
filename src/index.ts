@@ -11,10 +11,10 @@ import { ingestRoutes } from "./routes/ingest";
 import { contactRoutes } from "./routes/contact";
 import { usersRoutes } from "./routes/users";
 import { savedSearchesRoutes } from "./routes/savedSearches";
+import { savedJobsRoutes } from "./routes/savedJobs";
 import { resumeInterruptedIngest, runIngest } from "./ingest/run";
 import { runSavedSearchDigest } from "./digest/savedSearchDigest";
 import { runWeeklyOpportunitiesEmail } from "./digest/weeklyOpportunitiesEmail";
-import { runSemiMonthlyUpdateEmail } from "./digest/semiMonthlyUpdateEmail";
 
 const app: Express = express();
 
@@ -35,6 +35,7 @@ ingestRoutes(app);
 contactRoutes(app);
 usersRoutes(app);
 savedSearchesRoutes(app);
+savedJobsRoutes(app);
 
 const start = async () => {
   const pool = instance();
@@ -49,21 +50,10 @@ const start = async () => {
     logger.error("Failed to resume interrupted ingest run", err),
   );
 
-  const CLEAR_JOBS_HOURS = [3];
-
   cron.schedule(
     env.INGEST_CRON,
     () => {
-      const hour = Number(
-        new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/New_York",
-          hour: "numeric",
-          hourCycle: "h23",
-        }).format(new Date()),
-      );
-      const clearOldJobs = CLEAR_JOBS_HOURS.includes(hour);
-
-      runIngest(clearOldJobs).catch((err) =>
+      runIngest().catch((err) =>
         logger.error("Scheduled ingest run failed", err),
       );
     },
@@ -85,16 +75,6 @@ const start = async () => {
     () => {
       runWeeklyOpportunitiesEmail(pool).catch((err) =>
         logger.error("Scheduled weekly opportunities email run failed", err),
-      );
-    },
-    { timezone: "America/New_York" },
-  );
-
-  cron.schedule(
-    env.SEMI_MONTHLY_EMAIL_CRON,
-    () => {
-      runSemiMonthlyUpdateEmail(pool).catch((err) =>
-        logger.error("Scheduled semi-monthly update email run failed", err),
       );
     },
     { timezone: "America/New_York" },
