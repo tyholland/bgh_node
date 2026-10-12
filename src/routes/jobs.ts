@@ -40,6 +40,7 @@ const parseQuery = (
   activeSince: string | null,
 ): JobsQueryInput => ({
   activeSince,
+  newSince: null,
   search: asString(req.query.search),
   keyword: asString(req.query.keyword),
   company: asString(req.query.company),

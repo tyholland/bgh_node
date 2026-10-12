@@ -63,8 +63,18 @@ const start = async () => {
   cron.schedule(
     env.SAVED_SEARCH_DIGEST_CRON,
     () => {
-      runSavedSearchDigest(pool).catch((err) =>
-        logger.error("Scheduled saved search digest run failed", err),
+      runSavedSearchDigest(pool, "daily").catch((err) =>
+        logger.error("Scheduled daily saved search digest run failed", err),
+      );
+    },
+    { timezone: "America/New_York" },
+  );
+
+  cron.schedule(
+    env.SAVED_SEARCH_WEEKLY_DIGEST_CRON,
+    () => {
+      runSavedSearchDigest(pool, "weekly").catch((err) =>
+        logger.error("Scheduled weekly saved search digest run failed", err),
       );
     },
     { timezone: "America/New_York" },

@@ -247,6 +247,7 @@ export const selectJobById = async (
 ): Promise<JobRecord | null> => {
   const base = buildBaseConditions({
     activeSince,
+    newSince: null,
     search: "",
     keyword: "",
     company: "",

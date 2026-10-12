@@ -11,6 +11,11 @@ export const MAX_LIMIT = 50;
 
 export interface JobsQueryInput {
   activeSince: string | null;
+  // Unlike activeSince (a liveness filter: "still in the latest ingest"),
+  // this is a true new-postings filter — used only by the per-search alert
+  // digest to avoid re-mailing the same matches every cycle. null for every
+  // other caller (the public /v1/jobs listing has no such watermark).
+  newSince: string | null;
   search: string;
   keyword: string;
   company: string;
@@ -71,6 +76,11 @@ export const buildBaseConditions = (input: JobsQueryInput): SqlConditions => {
   if (input.activeSince) {
     values.push(input.activeSince);
     conditions.push(`last_seen_at >= $${values.length}`);
+  }
+
+  if (input.newSince) {
+    values.push(input.newSince);
+    conditions.push(`first_seen_at > $${values.length}`);
   }
 
   // Unlike company / industry / keyword (OR within the list), search is AND:

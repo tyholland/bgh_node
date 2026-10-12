@@ -5,7 +5,8 @@ vi.mock("../src/db/jobs.repo", () => ({
   selectJobsPage: vi.fn(),
 }));
 vi.mock("../src/db/savedSearches.repo", () => ({
-  listSavedSearchesForDigest: vi.fn(),
+  listDueSavedSearches: vi.fn(),
+  markSavedSearchesAlerted: vi.fn(),
 }));
 vi.mock("../src/db/runs.repo", () => ({ getLastSuccessfulRun: vi.fn() }));
 
@@ -16,13 +17,34 @@ vi.mock("../src/lib/mail", () => ({
 
 import { countJobs, selectJobsPage } from "../src/db/jobs.repo";
 import { getLastSuccessfulRun } from "../src/db/runs.repo";
-import { listSavedSearchesForDigest } from "../src/db/savedSearches.repo";
+import {
+  listDueSavedSearches,
+  markSavedSearchesAlerted,
+} from "../src/db/savedSearches.repo";
 import {
   buildDigestEmail,
   buildSavedSearchUrl,
+  buildUnsubscribeUrl,
   runSavedSearchDigest,
 } from "../src/digest/savedSearchDigest";
-import type { SavedSearchWithOwner } from "../src/db/savedSearches.repo";
+import type { SavedSearchForDigest } from "../src/db/savedSearches.repo";
+
+const baseRow = (
+  overrides: Partial<SavedSearchForDigest>,
+): SavedSearchForDigest => ({
+  id: "1",
+  uid: "uid-1",
+  name: "Engineering",
+  params: {},
+  alert_frequency: "daily",
+  last_alerted_at: null,
+  created_at: "2026-10-01T00:00:00.000Z",
+  email: "a@example.com",
+  display_name: "Alex",
+  email_notifications: true,
+  unsubscribe_token: "token-1",
+  ...overrides,
+});
 
 describe("buildSavedSearchUrl", () => {
   it("builds a bare URL when there are no params", () => {
@@ -35,6 +57,12 @@ describe("buildSavedSearchUrl", () => {
   });
 });
 
+describe("buildUnsubscribeUrl", () => {
+  it("returns null when API_BASE_URL isn't configured", () => {
+    expect(buildUnsubscribeUrl("search-1", "token-1")).toBeNull();
+  });
+});
+
 describe("buildDigestEmail", () => {
   it("greets the user by display name when present", () => {
     const email = buildDigestEmail("Jamie", [
@@ -43,6 +71,7 @@ describe("buildDigestEmail", () => {
         url: "https://x/?a=1",
         count: 3,
         topJobs: [],
+        unsubscribeUrl: null,
       },
     ]);
 
@@ -55,29 +84,31 @@ describe("buildDigestEmail", () => {
       {
         name: "Engineering roles",
         url: "https://x/?a=1",
-        count: 0,
+        count: 1,
         topJobs: [],
+        unsubscribeUrl: null,
       },
     ]);
 
     expect(email.html).toContain("Hi,");
   });
 
-  it("links the saved search name and lists its result count", () => {
+  it("links the saved search name and lists its new result count", () => {
     const email = buildDigestEmail("Jamie", [
       {
         name: "Engineering roles",
         url: "https://x/?a=1",
         count: 1,
         topJobs: [],
+        unsubscribeUrl: null,
       },
     ]);
 
     expect(email.html).toContain(
       '<a href="https://x/?a=1">Engineering roles</a>',
     );
-    expect(email.html).toContain("1 result<");
-    expect(email.html).not.toContain("1 results");
+    expect(email.html).toContain("1 new result<");
+    expect(email.html).not.toContain("1 new results");
   });
 
   it("lists each previewed job under its saved search", () => {
@@ -86,6 +117,7 @@ describe("buildDigestEmail", () => {
         name: "Engineering roles",
         url: "https://x/?a=1",
         count: 2,
+        unsubscribeUrl: null,
         topJobs: [
           {
             role: "Backend Engineer",
@@ -112,17 +144,38 @@ describe("buildDigestEmail", () => {
     );
   });
 
-  it("omits the nested job list when there are no previewed jobs", () => {
+  it("includes an unsubscribe link for a result when one is given", () => {
     const email = buildDigestEmail("Jamie", [
       {
         name: "Engineering roles",
         url: "https://x/?a=1",
-        count: 0,
+        count: 1,
         topJobs: [],
+        unsubscribeUrl:
+          "https://api.x/v1/saved-searches/1/unsubscribe?token=abc",
       },
     ]);
 
-    expect(email.html).not.toContain("<ul></ul>");
+    expect(email.html).toContain(
+      '<a href="https://api.x/v1/saved-searches/1/unsubscribe?token=abc">unsubscribe from this alert</a>',
+    );
+    expect(email.text).toContain(
+      "unsubscribe: https://api.x/v1/saved-searches/1/unsubscribe?token=abc",
+    );
+  });
+
+  it("omits the unsubscribe link entirely when none is given", () => {
+    const email = buildDigestEmail("Jamie", [
+      {
+        name: "Engineering roles",
+        url: "https://x/?a=1",
+        count: 1,
+        topJobs: [],
+        unsubscribeUrl: null,
+      },
+    ]);
+
+    expect(email.html).not.toContain("unsubscribe");
   });
 
   it("escapes user-controlled values in the HTML body", () => {
@@ -131,6 +184,7 @@ describe("buildDigestEmail", () => {
         name: "<b>xss</b>",
         url: "https://x/?a=1",
         count: 2,
+        unsubscribeUrl: null,
         topJobs: [
           {
             role: "<i>role</i>",
@@ -163,48 +217,55 @@ describe("runSavedSearchDigest", () => {
     vi.mocked(selectJobsPage).mockResolvedValue([]);
   });
 
-  it("does nothing when no one has a saved search", async () => {
-    vi.mocked(listSavedSearchesForDigest).mockResolvedValue([]);
+  it("does nothing when no search of this frequency is due", async () => {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([]);
 
-    await runSavedSearchDigest({} as never);
+    await runSavedSearchDigest({} as never, "daily");
 
     expect(sendMail).not.toHaveBeenCalled();
+    expect(markSavedSearchesAlerted).not.toHaveBeenCalled();
   });
 
-  it("sends one email per user with all of their saved searches", async () => {
-    const rows: SavedSearchWithOwner[] = [
-      {
+  it("asks the repo for the requested frequency bucket", async () => {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([]);
+
+    await runSavedSearchDigest({} as never, "weekly");
+
+    expect(listDueSavedSearches).toHaveBeenCalledWith({}, "weekly");
+  });
+
+  it("skips a search with nothing new instead of emailing an empty result", async () => {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([baseRow({})]);
+    vi.mocked(countJobs).mockResolvedValue(0);
+
+    await runSavedSearchDigest({} as never, "daily");
+
+    expect(sendMail).not.toHaveBeenCalled();
+    // The watermark still advances — a quiet cycle isn't retried forever.
+    expect(markSavedSearchesAlerted).toHaveBeenCalledWith({}, ["1"]);
+  });
+
+  it("sends one email per user covering only their searches with new matches", async () => {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([
+      baseRow({
         id: "1",
-        uid: "uid-1",
         name: "Engineering",
         params: { keyword: "engineer" },
-        created_at: new Date().toISOString(),
-        email: "a@example.com",
-        display_name: "Alex",
-      },
-      {
-        id: "2",
-        uid: "uid-1",
-        name: "Sales",
-        params: { keyword: "sales" },
-        created_at: new Date().toISOString(),
-        email: "a@example.com",
-        display_name: "Alex",
-      },
-      {
+      }),
+      baseRow({ id: "2", name: "Sales", params: { keyword: "sales" } }),
+      baseRow({
         id: "3",
         uid: "uid-2",
         name: null,
         params: {},
-        created_at: new Date().toISOString(),
         email: "b@example.com",
         display_name: null,
-      },
-    ];
-    vi.mocked(listSavedSearchesForDigest).mockResolvedValue(rows);
+        unsubscribe_token: "token-3",
+      }),
+    ]);
     vi.mocked(countJobs).mockResolvedValue(5);
 
-    await runSavedSearchDigest({} as never);
+    await runSavedSearchDigest({} as never, "daily");
 
     expect(sendMail).toHaveBeenCalledTimes(2);
 
@@ -219,21 +280,39 @@ describe("runSavedSearchDigest", () => {
       (call) => call[0].to === "b@example.com",
     );
     expect(uid2Call?.[0].html).toContain("Saved search");
+
+    expect(markSavedSearchesAlerted).toHaveBeenCalledWith({}, ["1", "2", "3"]);
+  });
+
+  it("filters jobs to first_seen since the search's own last_alerted_at", async () => {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([
+      baseRow({ last_alerted_at: "2026-10-05T00:00:00.000Z" }),
+    ]);
+    vi.mocked(countJobs).mockResolvedValue(1);
+
+    await runSavedSearchDigest({} as never, "daily");
+
+    const [, queryInput] = vi.mocked(countJobs).mock.calls[0];
+    expect(queryInput.newSince).toBe("2026-10-05T00:00:00.000Z");
+  });
+
+  it("falls back to created_at for a search's very first alert", async () => {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([
+      baseRow({
+        last_alerted_at: null,
+        created_at: "2026-09-01T00:00:00.000Z",
+      }),
+    ]);
+    vi.mocked(countJobs).mockResolvedValue(1);
+
+    await runSavedSearchDigest({} as never, "daily");
+
+    const [, queryInput] = vi.mocked(countJobs).mock.calls[0];
+    expect(queryInput.newSince).toBe("2026-09-01T00:00:00.000Z");
   });
 
   it("includes previewed jobs for each saved search in the sent email", async () => {
-    const rows: SavedSearchWithOwner[] = [
-      {
-        id: "1",
-        uid: "uid-1",
-        name: "Engineering",
-        params: { keyword: "engineer" },
-        created_at: new Date().toISOString(),
-        email: "a@example.com",
-        display_name: "Alex",
-      },
-    ];
-    vi.mocked(listSavedSearchesForDigest).mockResolvedValue(rows);
+    vi.mocked(listDueSavedSearches).mockResolvedValue([baseRow({})]);
     vi.mocked(countJobs).mockResolvedValue(1);
     vi.mocked(selectJobsPage).mockResolvedValue([
       {
@@ -253,40 +332,57 @@ describe("runSavedSearchDigest", () => {
       },
     ]);
 
-    await runSavedSearchDigest({} as never);
+    await runSavedSearchDigest({} as never, "daily");
 
     const call = sendMail.mock.calls.find((c) => c[0].to === "a@example.com");
     expect(call?.[0].html).toContain("Backend Engineer at Globex");
   });
 
+  it("skips the send but still advances the watermark when the user has opted out", async () => {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([
+      baseRow({ email_notifications: false }),
+    ]);
+    vi.mocked(countJobs).mockResolvedValue(5);
+
+    await runSavedSearchDigest({} as never, "daily");
+
+    expect(sendMail).not.toHaveBeenCalled();
+    expect(markSavedSearchesAlerted).toHaveBeenCalledWith({}, ["1"]);
+  });
+
+  it("does not advance the watermark for a search whose query throws", async () => {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([
+      baseRow({ id: "1" }),
+      baseRow({ id: "2", uid: "uid-2", email: "b@example.com" }),
+    ]);
+    vi.mocked(countJobs)
+      .mockRejectedValueOnce(new Error("db timeout"))
+      .mockResolvedValueOnce(1);
+
+    await runSavedSearchDigest({} as never, "daily");
+
+    expect(markSavedSearchesAlerted).toHaveBeenCalledWith({}, ["2"]);
+  });
+
   it("keeps sending to other users when one send fails", async () => {
-    const rows: SavedSearchWithOwner[] = [
-      {
-        id: "1",
-        uid: "uid-1",
-        name: "Engineering",
-        params: {},
-        created_at: new Date().toISOString(),
-        email: "a@example.com",
-        display_name: "Alex",
-      },
-      {
+    vi.mocked(listDueSavedSearches).mockResolvedValue([
+      baseRow({ id: "1", uid: "uid-1", email: "a@example.com" }),
+      baseRow({
         id: "2",
         uid: "uid-2",
-        name: "Sales",
-        params: {},
-        created_at: new Date().toISOString(),
         email: "b@example.com",
         display_name: "Blair",
-      },
-    ];
-    vi.mocked(listSavedSearchesForDigest).mockResolvedValue(rows);
-    vi.mocked(countJobs).mockResolvedValue(0);
+      }),
+    ]);
+    vi.mocked(countJobs).mockResolvedValue(1);
     sendMail.mockRejectedValueOnce(new Error("smtp down"));
     sendMail.mockResolvedValueOnce(undefined);
 
-    await expect(runSavedSearchDigest({} as never)).resolves.toBeUndefined();
+    await expect(
+      runSavedSearchDigest({} as never, "daily"),
+    ).resolves.toBeUndefined();
 
     expect(sendMail).toHaveBeenCalledTimes(2);
+    expect(markSavedSearchesAlerted).toHaveBeenCalledWith({}, ["1", "2"]);
   });
 });

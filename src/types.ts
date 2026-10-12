@@ -113,11 +113,22 @@ export interface UrlParams {
   sort?: string;
 }
 
+// Whether, and how often, a saved search emails its owner when new jobs
+// match it. "off" is the default for every newly created search — opt-in,
+// not opt-out. Existing rows from before this column existed were backfilled
+// to "daily" (migration 009) so nobody already relying on the digest went
+// silent when this shipped.
+export type AlertFrequency = "off" | "daily" | "weekly";
+
 export interface SavedSearchRecord {
   id: string;
   uid: string;
   name: string | null;
   params: UrlParams;
+  alert_frequency: AlertFrequency;
+  // null until this search's first alert run; the digest's watermark for
+  // "new since when" (see jobsQuery's newSince).
+  last_alerted_at: string | null;
   created_at: string;
 }
 
