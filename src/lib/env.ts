@@ -58,7 +58,7 @@ const envSchema = z.object({
   // unsubscribe link in alert emails (GET /v1/saved-searches/:id/unsubscribe
   // lives here, not on the frontend). Optional: without it, alert emails
   // just omit the unsubscribe line rather than failing to send.
-  API_BASE_URL: z.string().url().optional(),
+  API_BASE_URL: z.string().url().default("https://api.bghscout.com"),
   SAVED_SEARCH_DIGEST_CRON: z.string().default("0 9 * * *"),
   SAVED_SEARCH_WEEKLY_DIGEST_CRON: z.string().default("0 9 * * 1"),
   WEEKLY_EMAIL_CRON: z.string().default("0 10 * * 1"),
