@@ -47,16 +47,11 @@ export const buildSavedSearchUrl = (params: UrlParams): string => {
   return `${env.FRONTEND_BASE_URL}${search ? `/?${search}` : ""}`;
 };
 
-// null when API_BASE_URL isn't configured — the digest just omits the
-// unsubscribe line rather than emailing a broken link or failing the whole
-// run over a nice-to-have.
 export const buildUnsubscribeUrl = (
   savedSearchId: string,
   unsubscribeToken: string,
-): string | null =>
-  env.API_BASE_URL
-    ? `${env.API_BASE_URL}/v1/saved-searches/${savedSearchId}/unsubscribe?token=${unsubscribeToken}`
-    : null;
+): string =>
+  `${env.API_BASE_URL}/v1/saved-searches/${savedSearchId}/unsubscribe?token=${unsubscribeToken}`;
 
 const escapeHtml = (value: string): string =>
   value

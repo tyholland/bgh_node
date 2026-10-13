@@ -56,8 +56,7 @@ const envSchema = z.object({
   FRONTEND_BASE_URL: z.string().url().default("https://www.bghscout.com"),
   // This API's own public base URL — used only to build the one-click
   // unsubscribe link in alert emails (GET /v1/saved-searches/:id/unsubscribe
-  // lives here, not on the frontend). Optional: without it, alert emails
-  // just omit the unsubscribe line rather than failing to send.
+  // lives here, not on the frontend).
   API_BASE_URL: z.string().url().default("https://api.bghscout.com"),
   SAVED_SEARCH_DIGEST_CRON: z.string().default("0 9 * * *"),
   SAVED_SEARCH_WEEKLY_DIGEST_CRON: z.string().default("0 9 * * 1"),

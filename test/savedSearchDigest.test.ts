@@ -58,8 +58,10 @@ describe("buildSavedSearchUrl", () => {
 });
 
 describe("buildUnsubscribeUrl", () => {
-  it("returns null when API_BASE_URL isn't configured", () => {
-    expect(buildUnsubscribeUrl("search-1", "token-1")).toBeNull();
+  it("builds a link against the configured API_BASE_URL", () => {
+    expect(buildUnsubscribeUrl("search-1", "token-1")).toBe(
+      "https://api.bghscout.com/v1/saved-searches/search-1/unsubscribe?token=token-1",
+    );
   });
 });
 
