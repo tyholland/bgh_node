@@ -14,6 +14,7 @@ import {
 
 const query = (over: Partial<JobsQueryInput> = {}): JobsQueryInput => ({
   activeSince: null,
+  newSince: null,
   search: "",
   keyword: "",
   company: "",
@@ -91,6 +92,23 @@ describe("buildBaseConditions", () => {
     );
     expect(clause).toContain("last_seen_at >= $1");
     expect(values).toEqual(["2026-09-10"]);
+  });
+
+  it("adds first_seen_at when newSince is set", () => {
+    const { clause, values } = buildBaseConditions(
+      query({ newSince: "2026-09-10T00:00:00.000Z" }),
+    );
+    expect(clause).toContain("first_seen_at > $1");
+    expect(values).toEqual(["2026-09-10T00:00:00.000Z"]);
+  });
+
+  it("combines activeSince and newSince as independent AND conditions", () => {
+    const { clause, values } = buildBaseConditions(
+      query({ activeSince: "2026-09-01", newSince: "2026-09-10" }),
+    );
+    expect(clause).toContain("last_seen_at >= $1");
+    expect(clause).toContain("first_seen_at > $2");
+    expect(values).toEqual(["2026-09-01", "2026-09-10"]);
   });
 
   it("adds a NOT EXISTS clause requiring every search term in role_name", () => {
