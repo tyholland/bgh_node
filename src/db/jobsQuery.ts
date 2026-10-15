@@ -100,7 +100,7 @@ export const buildBaseConditions = (input: JobsQueryInput): SqlConditions => {
     if (wanted.length) {
       values.push(wanted);
       conditions.push(
-        `EXISTS (SELECT 1 FROM unnest($${values.length}::text[]) kw WHERE position(kw in lower(details->>'description')) > 0)`,
+        `EXISTS (SELECT 1 FROM unnest($${values.length}::text[]) kw WHERE position(kw in lower(coalesce(details->>'description', ''))) > 0 OR position(kw in lower(coalesce(details::text, ''))) > 0)`,
       );
     }
   }
