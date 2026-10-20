@@ -73,6 +73,15 @@ const envSchema = z.object({
     ),
   DETAILS_OK_TTL_HOURS: numberFromString(168),
   DETAILS_RETRY_HOURS: numberFromString(6),
+  // Caps how many rows a single ingest run pulls into memory for
+  // enrichment. Without this, every row whose details TTL expires at once
+  // (e.g. a batch of jobs all first enriched around the same time, so their
+  // 168h TTL all lapse together) gets selected into one array and crawled
+  // in the same run — on a large jobs table that single run's memory
+  // footprint scales with the whole due-set instead of a bounded batch.
+  // selectRowsToEnrich takes the oldest/never-fetched rows first, so any
+  // backlog beyond this works down over the next scheduled runs instead.
+  ENRICH_BATCH_SIZE: numberFromString(500),
   // A job not seen in the sheet for this long is pruned from `jobs` — see
   // pruneStaleJobs in src/db/jobs.repo.ts.
   JOBS_STALE_MONTHS: numberFromString(3),

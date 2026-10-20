@@ -36,12 +36,26 @@ const isJobPosting = (node: JsonLdNode): boolean => {
   return false;
 };
 
+// A real JobPosting JSON-LD block is a few KB at most. This isn't about
+// trusting the page's declared size — it's a floor under JSON.parse itself:
+// V8's OOM abort on a pathological JSON string happens inside the parser,
+// as a fatal process-level error that no try/catch here can intercept, so
+// the string has to be kept away from JSON.parse before the call, not
+// handled after it. Length (not byte size) is enough since the fatal
+// allocation V8 hit was for a two-byte string — a size check keyed on byte
+// length would still let through a tag with this many UTF-16 code units.
+const MAX_JSONLD_CHARS = 256 * 1024;
+
 export const findJobPostingNodes = (html: string): JsonLdNode[] => {
   const $ = cheerio.load(html);
   const nodes: JsonLdNode[] = [];
 
   $('script[type="application/ld+json"]').each((_, el) => {
     const text = $(el).contents().text();
+
+    if (text.length > MAX_JSONLD_CHARS) {
+      return;
+    }
 
     try {
       const parsed = JSON.parse(text);
