@@ -15,7 +15,7 @@ import {
 import { env } from "../lib/env";
 import { logger } from "../lib/logger";
 import { fetchAndNormalizeCsv } from "./csv";
-import { enrichJob } from "./enrich";
+import { enrichJob, resetHostThrottle } from "./enrich";
 import { revalidateFrontend } from "./revalidate";
 
 let isRunning = false;
@@ -96,6 +96,9 @@ const runIngestUnlocked = async () => {
     }
 
     const toEnrich = await selectRowsToEnrich(pool);
+
+    resetHostThrottle();
+
     const limit = pLimit(env.CRAWL_CONCURRENCY);
 
     await Promise.all(
