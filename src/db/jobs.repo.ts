@@ -94,7 +94,10 @@ export const upsertJobs = async (
   }
 };
 
-export const selectRowsToEnrich = async (pool: Pool): Promise<JobRecord[]> => {
+export const selectRowsToEnrich = async (
+  pool: Pool,
+  limit: number = env.ENRICH_BATCH_SIZE,
+): Promise<JobRecord[]> => {
   const okCutoff = dayjs()
     .subtract(env.DETAILS_OK_TTL_HOURS, "hour")
     .toISOString();
@@ -102,12 +105,18 @@ export const selectRowsToEnrich = async (pool: Pool): Promise<JobRecord[]> => {
     .subtract(env.DETAILS_RETRY_HOURS, "hour")
     .toISOString();
 
+  // Oldest/never-fetched first (NULLS FIRST puts every still-'pending' row,
+  // which has no details_fetched_at yet, ahead of any due-for-refresh 'ok'
+  // or 'failed' row) so a backlog larger than `limit` works down in FIFO
+  // order across runs rather than the same newest rows winning every time.
   const result = await pool.query<JobRecord>(
     `SELECT * FROM jobs
      WHERE details_status = 'pending'
         OR (details_status = 'failed' AND details_fetched_at < $1)
-        OR (details_status = 'ok' AND details_fetched_at < $2)`,
-    [failedCutoff, okCutoff],
+        OR (details_status = 'ok' AND details_fetched_at < $2)
+     ORDER BY details_fetched_at ASC NULLS FIRST
+     LIMIT $3`,
+    [failedCutoff, okCutoff, limit],
   );
 
   return result.rows;

@@ -15,7 +15,10 @@ vi.mock("../src/db/runs.repo", () => ({
   abandonRun: vi.fn(),
 }));
 vi.mock("../src/ingest/csv", () => ({ fetchAndNormalizeCsv: vi.fn() }));
-vi.mock("../src/ingest/enrich", () => ({ enrichJob: vi.fn() }));
+vi.mock("../src/ingest/enrich", () => ({
+  enrichJob: vi.fn(),
+  resetHostThrottle: vi.fn(),
+}));
 vi.mock("../src/ingest/revalidate", () => ({ revalidateFrontend: vi.fn() }));
 
 import { instance } from "../src/db/client";
