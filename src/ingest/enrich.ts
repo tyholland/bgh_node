@@ -8,6 +8,32 @@ const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 const lastRequestAtByHost = new Map<string, number>();
 
+// lastRequestAtByHost gains one entry per distinct host ever crawled and is
+// never otherwise cleared, so across enough ingest runs over enough distinct
+// employer domains it grows without bound for the life of the process. Any
+// entry whose stored time has already passed is no longer needed to compute
+// the next wait (same as if it were absent), so periodically drop those —
+// gated by time rather than call count so it stays cheap regardless of how
+// many jobs a given run enriches.
+const HOST_SWEEP_INTERVAL_MS = 60_000;
+let lastSweepAt = 0;
+
+const sweepStaleHosts = () => {
+  const now = Date.now();
+
+  if (now - lastSweepAt < HOST_SWEEP_INTERVAL_MS) {
+    return;
+  }
+
+  lastSweepAt = now;
+
+  for (const [host, nextAllowedAt] of lastRequestAtByHost) {
+    if (nextAllowedAt < now) {
+      lastRequestAtByHost.delete(host);
+    }
+  }
+};
+
 const throttlePerHost = async (link: string) => {
   let host: string;
 
@@ -16,6 +42,8 @@ const throttlePerHost = async (link: string) => {
   } catch {
     return;
   }
+
+  sweepStaleHosts();
 
   const minGapMs = 200 + Math.random() * 300;
   const lastAt = lastRequestAtByHost.get(host) || 0;
