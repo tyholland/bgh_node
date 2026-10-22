@@ -61,6 +61,8 @@ const envSchema = z.object({
   SAVED_SEARCH_DIGEST_CRON: z.string().default("0 8 * * *"),
   SAVED_SEARCH_WEEKLY_DIGEST_CRON: z.string().default("0 8 * * 1"),
   WEEKLY_EMAIL_CRON: z.string().default("0 11 * * 1"),
+  SAVED_JOB_DIGEST_CRON: z.string().default("30 8 * * *"),
+  JOB_TITLE_MATCH_WEEKLY_CRON: z.string().default("0 9 * * 1"),
 
   FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
 

@@ -49,6 +49,7 @@ const fakeUser: UserRecord = {
   provider_id: "password",
   email_notifications: true,
   job_title: null,
+  job_title_alerted_at: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };

@@ -110,3 +110,50 @@ export const listUsersForWeeklyEmail = async (
 
   return result.rows;
 };
+
+export interface UserDueForJobTitleMatch {
+  uid: string;
+  email: string;
+  display_name: string | null;
+  job_title: string;
+  job_title_alerted_at: string | null;
+  created_at: string;
+  email_notifications: boolean;
+}
+
+// Every user with a job title set who's due for another weekly "jobs
+// matching your job title" email — never seen one (job_title_alerted_at is
+// null) or its last one was far enough back. Deliberately does NOT filter
+// by email_notifications here, same as listDueSavedSearches/listDueSavedJobs
+// — the digest runner skips the *send* for an opted-out user but still
+// advances job_title_alerted_at, so re-enabling notifications later doesn't
+// dump a backlog of "new" jobs that accumulated while they were off.
+export const listUsersDueForJobTitleMatch = async (
+  pool: Pool,
+): Promise<UserDueForJobTitleMatch[]> => {
+  const result = await pool.query<UserDueForJobTitleMatch>(
+    `SELECT uid, email, display_name, job_title, job_title_alerted_at, created_at, email_notifications
+     FROM users_bgh
+     WHERE email IS NOT NULL AND email <> ''
+       AND job_title IS NOT NULL AND trim(job_title) <> ''
+       AND (job_title_alerted_at IS NULL OR job_title_alerted_at < now() - interval '7 days')`,
+  );
+
+  return result.rows;
+};
+
+// Advances the watermark for every user this digest run touched — whether
+// or not they actually matched new jobs, and whether or not an email went
+// out for it (see listUsersDueForJobTitleMatch's comment on
+// email_notifications).
+export const markUsersJobTitleAlerted = async (
+  pool: Pool,
+  uids: string[],
+): Promise<void> => {
+  if (!uids.length) return;
+
+  await pool.query(
+    `UPDATE users_bgh SET job_title_alerted_at = now() WHERE uid = ANY($1::text[])`,
+    [uids],
+  );
+};
