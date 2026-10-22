@@ -48,6 +48,7 @@ const fakeUser: UserRecord = {
   photo_url: null,
   provider_id: "password",
   email_notifications: true,
+  job_title: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -113,7 +114,7 @@ describe("GET /v1/users/:uid", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns the profile including emailNotifications", async () => {
+  it("returns the profile including emailNotifications and jobTitle", async () => {
     vi.mocked(getUserByUid).mockResolvedValue(fakeUser);
     const app = buildApp();
 
@@ -128,6 +129,7 @@ describe("GET /v1/users/:uid", () => {
       photoURL: null,
       providerId: "password",
       emailNotifications: true,
+      jobTitle: null,
     });
   });
 });
@@ -188,6 +190,20 @@ describe("PATCH /v1/users/:uid", () => {
     expect(res.status).toBe(200);
     expect(updateUserPartial).toHaveBeenCalledWith({}, "uid-123", {
       emailNotifications: false,
+    });
+  });
+
+  it("merges a partial jobTitle-only body without touching other fields", async () => {
+    vi.mocked(getUserByUid).mockResolvedValue(fakeUser);
+    const app = buildApp();
+
+    const res = await request(app)
+      .patch("/v1/users/uid-123")
+      .send({ jobTitle: "Software Engineer" });
+
+    expect(res.status).toBe(200);
+    expect(updateUserPartial).toHaveBeenCalledWith({}, "uid-123", {
+      jobTitle: "Software Engineer",
     });
   });
 

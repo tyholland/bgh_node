@@ -31,6 +31,7 @@ const userPatchSchema = z.object({
   photoURL: z.string().url().nullable().optional(),
   providerId: z.string().min(1).optional(),
   emailNotifications: z.boolean().optional(),
+  jobTitle: z.string().max(200).nullable().optional(),
 });
 
 const serializeUser = (user: UserRecord) => ({
@@ -41,6 +42,7 @@ const serializeUser = (user: UserRecord) => ({
   photoURL: user.photo_url,
   providerId: user.provider_id,
   emailNotifications: user.email_notifications,
+  jobTitle: user.job_title,
 });
 
 const postUsersHandler = async (req: Request, res: Response) => {
@@ -107,6 +109,7 @@ const patchUserHandler = async (req: Request, res: Response) => {
     patch.providerId = parsed.data.providerId;
   if (parsed.data.emailNotifications !== undefined)
     patch.emailNotifications = parsed.data.emailNotifications;
+  if (parsed.data.jobTitle !== undefined) patch.jobTitle = parsed.data.jobTitle;
 
   await updateUserPartial(pool, req.params.uid, patch);
 

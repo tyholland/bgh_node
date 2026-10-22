@@ -6,8 +6,8 @@ export const upsertUser = async (
   profile: UserProfile,
 ): Promise<UserRecord> => {
   const result = await pool.query<UserRecord>(
-    `INSERT INTO users_bgh (uid, email, display_name, phone_number, photo_url, provider_id, email_notifications, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, true, now())
+    `INSERT INTO users_bgh (uid, email, display_name, phone_number, photo_url, provider_id, email_notifications, job_title, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, true, null, now())
      ON CONFLICT (uid) DO UPDATE SET
        email = EXCLUDED.email,
        display_name = EXCLUDED.display_name,
@@ -48,6 +48,7 @@ export interface UserPatch {
   photoURL?: string | null;
   providerId?: string;
   emailNotifications?: boolean;
+  jobTitle?: string | null;
 }
 
 const PATCH_FIELD_COLUMNS: Record<keyof UserPatch, string> = {
@@ -57,6 +58,7 @@ const PATCH_FIELD_COLUMNS: Record<keyof UserPatch, string> = {
   photoURL: "photo_url",
   providerId: "provider_id",
   emailNotifications: "email_notifications",
+  jobTitle: "job_title",
 };
 
 // Merges only the provided keys — every other column (email_notifications

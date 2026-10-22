@@ -99,6 +99,7 @@ export interface UserRecord {
   photo_url: string | null;
   provider_id: string;
   email_notifications: boolean;
+  job_title: string | null;
   created_at: string;
   updated_at: string;
 }
