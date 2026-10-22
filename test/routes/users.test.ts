@@ -8,6 +8,9 @@ vi.mock("../../src/db/users.repo", () => ({
   upsertUser: vi.fn(),
   updateUserPartial: vi.fn(),
 }));
+vi.mock("../../src/digest/welcomeEmail", () => ({
+  sendWelcomeEmail: vi.fn(),
+}));
 vi.mock("../../src/auth/verifyIdToken", () => ({
   requireFirebaseAuth: (_req: Request, res: Response, next: NextFunction) => {
     res.locals.firebaseUid = "uid-123";
@@ -21,6 +24,7 @@ import {
   updateUserPartial,
   upsertUser,
 } from "../../src/db/users.repo";
+import { sendWelcomeEmail } from "../../src/digest/welcomeEmail";
 import { usersRoutes } from "../../src/routes/users";
 import type { UserRecord } from "../../src/types";
 
@@ -72,6 +76,7 @@ describe("POST /v1/users", () => {
   });
 
   it("creates the profile when uid matches the authenticated caller", async () => {
+    vi.mocked(upsertUser).mockResolvedValue({ user: fakeUser, isNew: false });
     const app = buildApp();
 
     const res = await request(app).post("/v1/users").send(validProfile);
@@ -88,6 +93,49 @@ describe("POST /v1/users", () => {
       .send({ ...validProfile, email: "not-an-email" });
 
     expect(res.status).toBe(400);
+  });
+
+  it("sends a welcome email when the account is brand new", async () => {
+    vi.mocked(upsertUser).mockResolvedValue({ user: fakeUser, isNew: true });
+    vi.mocked(sendWelcomeEmail).mockResolvedValue(undefined);
+    const app = buildApp();
+
+    const res = await request(app).post("/v1/users").send(validProfile);
+
+    expect(res.status).toBe(201);
+    expect(sendWelcomeEmail).toHaveBeenCalledWith("a@example.com", "A");
+  });
+
+  it("does not send a welcome email when the account already existed", async () => {
+    vi.mocked(upsertUser).mockResolvedValue({ user: fakeUser, isNew: false });
+    const app = buildApp();
+
+    const res = await request(app).post("/v1/users").send(validProfile);
+
+    expect(res.status).toBe(201);
+    expect(sendWelcomeEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not send a welcome email when the new account has no email on file", async () => {
+    vi.mocked(upsertUser).mockResolvedValue({ user: fakeUser, isNew: true });
+    const app = buildApp();
+
+    const res = await request(app)
+      .post("/v1/users")
+      .send({ ...validProfile, email: null });
+
+    expect(res.status).toBe(201);
+    expect(sendWelcomeEmail).not.toHaveBeenCalled();
+  });
+
+  it("still returns 201 for a new account when the welcome email fails to send", async () => {
+    vi.mocked(upsertUser).mockResolvedValue({ user: fakeUser, isNew: true });
+    vi.mocked(sendWelcomeEmail).mockRejectedValue(new Error("smtp down"));
+    const app = buildApp();
+
+    const res = await request(app).post("/v1/users").send(validProfile);
+
+    expect(res.status).toBe(201);
   });
 });
 

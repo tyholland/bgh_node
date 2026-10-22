@@ -1,20 +1,27 @@
 import { Pool } from "pg";
 import { UserProfile, UserRecord } from "../types";
 
+export interface UpsertUserResult {
+  user: UserRecord;
+  // True only when this call actually created the row — not on a repeat
+  // POST /v1/users for an already-existing uid. Lets the welcome email send
+  // exactly once per account instead of on every sign-in sync.
+  isNew: boolean;
+}
+
+// INSERT ... ON CONFLICT DO NOTHING first so RETURNING a row unambiguously
+// means a fresh account — the ON CONFLICT DO UPDATE this used to use always
+// returns a row (new or existing), so it can't tell the two cases apart.
+// Falls back to the UPDATE only on conflict, scoped to the same columns the
+// old single-statement upsert kept in sync.
 export const upsertUser = async (
   pool: Pool,
   profile: UserProfile,
-): Promise<UserRecord> => {
-  const result = await pool.query<UserRecord>(
+): Promise<UpsertUserResult> => {
+  const inserted = await pool.query<UserRecord>(
     `INSERT INTO users_bgh (uid, email, display_name, phone_number, photo_url, provider_id, email_notifications, job_title, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, true, null, now())
-     ON CONFLICT (uid) DO UPDATE SET
-       email = EXCLUDED.email,
-       display_name = EXCLUDED.display_name,
-       phone_number = EXCLUDED.phone_number,
-       photo_url = EXCLUDED.photo_url,
-       provider_id = EXCLUDED.provider_id,
-       updated_at = now()
+     ON CONFLICT (uid) DO NOTHING
      RETURNING *`,
     [
       profile.uid,
@@ -26,7 +33,31 @@ export const upsertUser = async (
     ],
   );
 
-  return result.rows[0];
+  if (inserted.rows[0]) {
+    return { user: inserted.rows[0], isNew: true };
+  }
+
+  const updated = await pool.query<UserRecord>(
+    `UPDATE users_bgh SET
+       email = $2,
+       display_name = $3,
+       phone_number = $4,
+       photo_url = $5,
+       provider_id = $6,
+       updated_at = now()
+     WHERE uid = $1
+     RETURNING *`,
+    [
+      profile.uid,
+      profile.email,
+      profile.displayName,
+      profile.phoneNumber,
+      profile.photoURL,
+      profile.providerId,
+    ],
+  );
+
+  return { user: updated.rows[0], isNew: false };
 };
 
 export const getUserByUid = async (

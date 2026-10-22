@@ -7,6 +7,7 @@ import {
   upsertUser,
   UserPatch,
 } from "../db/users.repo";
+import { sendWelcomeEmail } from "../digest/welcomeEmail";
 import { requireFirebaseAuth } from "../auth/verifyIdToken";
 import { logger } from "../lib/logger";
 import { UserRecord } from "../types";
@@ -57,7 +58,20 @@ const postUsersHandler = async (req: Request, res: Response) => {
   }
 
   const pool = instance();
-  await upsertUser(pool, parsed.data);
+  const { isNew } = await upsertUser(pool, parsed.data);
+
+  // Fire-and-forget: a slow or failing mail send should never hold up or
+  // fail account creation. Only a brand new row triggers this — see
+  // upsertUser's isNew — so re-syncing an existing profile on sign-in never
+  // re-sends it.
+  if (isNew && parsed.data.email) {
+    sendWelcomeEmail(parsed.data.email, parsed.data.displayName).catch((err) =>
+      logger.error(
+        `Failed to send welcome email to uid ${parsed.data.uid}`,
+        err,
+      ),
+    );
+  }
 
   return res.status(201).json({ ok: true });
 };

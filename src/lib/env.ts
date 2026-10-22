@@ -58,11 +58,11 @@ const envSchema = z.object({
   // unsubscribe link in alert emails (GET /v1/saved-searches/:id/unsubscribe
   // lives here, not on the frontend).
   API_BASE_URL: z.string().url().default("https://api.bghscout.com"),
-  SAVED_SEARCH_DIGEST_CRON: z.string().default("0 8 * * *"),
+  SAVED_SEARCH_DIGEST_CRON: z.string().default("0 10 * * *"),
   SAVED_SEARCH_WEEKLY_DIGEST_CRON: z.string().default("0 8 * * 1"),
-  WEEKLY_EMAIL_CRON: z.string().default("0 11 * * 1"),
-  SAVED_JOB_DIGEST_CRON: z.string().default("30 8 * * *"),
-  JOB_TITLE_MATCH_WEEKLY_CRON: z.string().default("0 9 * * 1"),
+  WEEKLY_EMAIL_CRON: z.string().default("0 8 * * 3"),
+  SAVED_JOB_DIGEST_CRON: z.string().default("30 10 * * *"),
+  JOB_TITLE_MATCH_WEEKLY_CRON: z.string().default("0 8 * * 2"),
 
   FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
 
