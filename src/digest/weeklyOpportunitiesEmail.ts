@@ -31,7 +31,6 @@ export const buildWeeklyOpportunitiesEmail = (
     <p>Whether you're actively looking for your next opportunity or simply keeping an eye on what's available, BGH Scout makes it easy to search and discover opportunities that match what you're looking for.</p>
     <p>Start searching today:<br>
     <a href="${BGH_SCOUT_URL}">Visit BGH Scout</a></p>
-    <p>Don't miss what's new, start your week with BGH Scout!</p>
     <p>Want to learn more about everything BGH Scout offers? Join the <a href="${BGH_LINKEDIN_GROUP_URL}">BGH LinkedIn Group</a> to stay up to date on all our features.</p>
     <p>Thanks,</p>
     <p>BGH Scout Team</p>
@@ -46,8 +45,6 @@ export const buildWeeklyOpportunitiesEmail = (
     "",
     "🔎 Start searching today:",
     `Visit BGH Scout: ${BGH_SCOUT_URL}`,
-    "",
-    "Don't miss what's new—start your week with BGH Scout!",
     "",
     `Want to learn more about everything BGH Scout offers? Join the BGH LinkedIn Group to stay up to date on all our features: ${BGH_LINKEDIN_GROUP_URL}`,
     "",
