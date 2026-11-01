@@ -14,7 +14,9 @@ import { savedSearchesRoutes } from "./routes/savedSearches";
 import { savedJobsRoutes } from "./routes/savedJobs";
 import { resumeInterruptedIngest, runIngest } from "./ingest/run";
 import { runSavedSearchDigest } from "./digest/savedSearchDigest";
+import { runSavedJobDigest } from "./digest/savedJobDigest";
 import { runWeeklyOpportunitiesEmail } from "./digest/weeklyOpportunitiesEmail";
+import { runJobTitleMatchEmail } from "./digest/jobTitleMatchEmail";
 
 const app: Express = express();
 
@@ -85,6 +87,26 @@ const start = async () => {
     () => {
       runWeeklyOpportunitiesEmail(pool).catch((err) =>
         logger.error("Scheduled weekly opportunities email run failed", err),
+      );
+    },
+    { timezone: "America/New_York" },
+  );
+
+  cron.schedule(
+    env.SAVED_JOB_DIGEST_CRON,
+    () => {
+      runSavedJobDigest(pool).catch((err) =>
+        logger.error("Scheduled saved job digest run failed", err),
+      );
+    },
+    { timezone: "America/New_York" },
+  );
+
+  cron.schedule(
+    env.JOB_TITLE_MATCH_WEEKLY_CRON,
+    () => {
+      runJobTitleMatchEmail(pool).catch((err) =>
+        logger.error("Scheduled job title match email run failed", err),
       );
     },
     { timezone: "America/New_York" },

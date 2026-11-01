@@ -46,6 +46,15 @@ const isJobPosting = (node: JsonLdNode): boolean => {
 // length would still let through a tag with this many UTF-16 code units.
 const MAX_JSONLD_CHARS = 256 * 1024;
 
+const extractMetaDescription = ($: cheerio.CheerioAPI): string | undefined => {
+  const ogDescription = $('meta[property="og:description"]').attr("content");
+  if (ogDescription) {
+    return ogDescription;
+  }
+
+  return $('meta[name="description"]').attr("content");
+};
+
 export const findJobPostingNodes = (html: string): JsonLdNode[] => {
   const $ = cheerio.load(html);
   const nodes: JsonLdNode[] = [];
@@ -65,6 +74,14 @@ export const findJobPostingNodes = (html: string): JsonLdNode[] => {
       // many sites emit malformed JSON-LD blocks; skip them
     }
   });
+
+  if (nodes.length === 0) {
+    const description = extractMetaDescription($);
+
+    if (description) {
+      nodes.push({ "@type": "JobPosting", description });
+    }
+  }
 
   return nodes;
 };

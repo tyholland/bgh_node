@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import {
   listUsersForWeeklyEmail,
   updateUserPartial,
+  upsertUser,
 } from "../src/db/users.repo";
 
 const makeFakePool = (rows: unknown[] = []) => {
@@ -10,6 +11,48 @@ const makeFakePool = (rows: unknown[] = []) => {
 
   return { pool: { query } as unknown as Pool, query };
 };
+
+const profile = {
+  uid: "uid-1",
+  email: "a@example.com",
+  displayName: "Alex",
+  phoneNumber: null,
+  photoURL: null,
+  providerId: "password",
+};
+
+describe("upsertUser", () => {
+  it("reports isNew when the INSERT ... ON CONFLICT DO NOTHING returns a row", async () => {
+    const row = { uid: "uid-1" };
+    const query = vi.fn(async () => ({ rows: [row] }));
+    const pool = { query } as unknown as Pool;
+
+    const result = await upsertUser(pool, profile);
+
+    expect(result).toEqual({ user: row, isNew: true });
+    // Only the INSERT ran — no fallback UPDATE needed.
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).toContain("ON CONFLICT (uid) DO NOTHING");
+  });
+
+  it("falls back to an UPDATE and reports isNew: false on conflict", async () => {
+    const existingRow = { uid: "uid-1" };
+    let call = 0;
+    const query = vi.fn(async () => {
+      call += 1;
+      // First call (the INSERT) hits the conflict and returns no row;
+      // second call (the fallback UPDATE) returns the existing row.
+      return { rows: call === 1 ? [] : [existingRow] };
+    });
+    const pool = { query } as unknown as Pool;
+
+    const result = await upsertUser(pool, profile);
+
+    expect(result).toEqual({ user: existingRow, isNew: false });
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1][0]).toContain("UPDATE users_bgh SET");
+  });
+});
 
 describe("updateUserPartial", () => {
   it("only sets the columns present in the patch", async () => {

@@ -99,6 +99,10 @@ export interface UserRecord {
   photo_url: string | null;
   provider_id: string;
   email_notifications: boolean;
+  job_title: string | null;
+  // null until the first weekly job-title-match email went out; the
+  // digest's watermark for "new since when" (see jobsQuery's newSince).
+  job_title_alerted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -120,6 +124,10 @@ export interface UrlParams {
 // silent when this shipped.
 export type AlertFrequency = "off" | "daily" | "weekly";
 
+// A saved job's alert has no "weekly" option — just whether a daily digest
+// of new postings matching its role title goes out.
+export type SavedJobAlertFrequency = "off" | "daily";
+
 export interface SavedSearchRecord {
   id: string;
   uid: string;
@@ -139,5 +147,9 @@ export interface SavedJobRecord {
   role_name: string;
   company: string | null;
   link: string;
+  alert_frequency: SavedJobAlertFrequency;
+  // null until this saved job's first alert run; the digest's watermark for
+  // "new since when" (see jobsQuery's newSince).
+  last_alerted_at: string | null;
   created_at: string;
 }
