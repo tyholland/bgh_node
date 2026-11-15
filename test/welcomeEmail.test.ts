@@ -30,13 +30,23 @@ describe("buildWelcomeEmail", () => {
     expect(email.subject).toBe("Welcome to BGH Scout!");
   });
 
-  it("links the LinkedIn group for news and feature updates", () => {
+  it("links LinkedIn, Instagram, and Facebook for news and feature updates", () => {
     const email = buildWelcomeEmail("Jamie");
 
     expect(email.html).toContain(
-      '<a href="https://www.linkedin.com/groups/40962102/">BGH Scout LinkedIn Group</a>',
+      '<a href="https://www.linkedin.com/company/bgh-scout">LinkedIn</a>',
     );
-    expect(email.text).toContain("https://www.linkedin.com/groups/40962102/");
+    expect(email.html).toContain(
+      '<a href="https://www.instagram.com/bgh_scout">Instagram</a>',
+    );
+    expect(email.html).toContain(
+      '<a href="https://www.facebook.com/people/BGH-Scout/615799168717987">Facebook</a>',
+    );
+    expect(email.text).toContain("https://www.linkedin.com/company/bgh-scout");
+    expect(email.text).toContain("https://www.instagram.com/bgh_scout");
+    expect(email.text).toContain(
+      "https://www.facebook.com/people/BGH-Scout/615799168717987",
+    );
   });
 
   it("mentions adding a job title for job-title-matched alerts", () => {

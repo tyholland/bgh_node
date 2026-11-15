@@ -21,7 +21,10 @@ import {
 // small enough the email doesn't turn into a second job board.
 const DIGEST_PREVIEW_LIMIT = 5;
 
-const BGH_LINKEDIN_GROUP_URL = "https://www.linkedin.com/groups/40962102/";
+const BGH_LINKEDIN_URL = "https://www.linkedin.com/company/bgh-scout";
+const BGH_INSTAGRAM_URL = "https://www.instagram.com/bgh_scout";
+const BGH_FACEBOOK_URL =
+  "https://www.facebook.com/people/BGH-Scout/615799168717987";
 
 const toJobsQueryInput = (
   jobTitle: string,
@@ -76,7 +79,7 @@ export const buildJobTitleMatchEmail = (
     <p>${escapeHtml(greeting)}</p>
     <p>There ${count === 1 ? "is" : "are"} <a href="${escapeHtml(searchUrl)}">${count} ${resultWord}</a> this week matching your job title, "${escapeHtml(jobTitle)}":</p>
     ${jobPreviewHtml}
-    <p>Want to learn more about everything BGH Scout offers? Join the <a href="${BGH_LINKEDIN_GROUP_URL}">BGH LinkedIn Group</a> to stay up to date on all our features.</p>
+    <p>Want to learn more about everything BGH Scout offers? Follow us on <a href="${BGH_LINKEDIN_URL}">LinkedIn</a>, <a href="${BGH_INSTAGRAM_URL}">Instagram</a>, and <a href="${BGH_FACEBOOK_URL}">Facebook</a> to stay up to date on all our features.</p>
     <p>Thanks,</p>
     <p>BGH Scout Team</p>
   `.trim();
@@ -92,7 +95,7 @@ export const buildJobTitleMatchEmail = (
     "",
     ...jobPreviewText,
     "",
-    `Want to learn more about everything BGH Scout offers? Join the BGH LinkedIn Group to stay up to date on all our features: ${BGH_LINKEDIN_GROUP_URL}`,
+    `Want to learn more about everything BGH Scout offers? Follow us on LinkedIn (${BGH_LINKEDIN_URL}), Instagram (${BGH_INSTAGRAM_URL}), and Facebook (${BGH_FACEBOOK_URL}) to stay up to date on all our features.`,
     "",
     "Thanks,",
     "BGH Scout Team",

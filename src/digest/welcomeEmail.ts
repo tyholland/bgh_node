@@ -2,7 +2,10 @@ import { env } from "../lib/env";
 import { buildMailTransport } from "../lib/mail";
 import { DigestEmail } from "./savedSearchDigest";
 
-const BGH_LINKEDIN_GROUP_URL = "https://www.linkedin.com/groups/40962102/";
+const BGH_LINKEDIN_URL = "https://www.linkedin.com/company/bgh-scout";
+const BGH_INSTAGRAM_URL = "https://www.instagram.com/bgh_scout";
+const BGH_FACEBOOK_URL =
+  "https://www.facebook.com/people/BGH-Scout/615799168717987";
 
 const escapeHtml = (value: string): string =>
   value
@@ -23,7 +26,7 @@ export const buildWelcomeEmail = (displayName: string | null): DigestEmail => {
     <p>${escapeHtml(greeting)}</p>
     <p>Welcome to BGH Scout! Here's how to get the most out of it:</p>
     <ul>
-      <li>Join the <a href="${BGH_LINKEDIN_GROUP_URL}">BGH Scout LinkedIn Group</a> for news and feature updates.</li>
+      <li>Follow BGH Scout on <a href="${BGH_LINKEDIN_URL}">LinkedIn</a>, <a href="${BGH_INSTAGRAM_URL}">Instagram</a>, and <a href="${BGH_FACEBOOK_URL}">Facebook</a> for news and feature updates.</li>
       <li>Add a job title to <a href="${accountUrl}">your account</a> to get a weekly email when new jobs match it.</li>
       <li>Save a search and turn on daily or weekly email alerts so new matching jobs land in your inbox.</li>
       <li>Save individual jobs you're interested in and get a daily alert when similar new postings appear.</li>
@@ -37,7 +40,7 @@ export const buildWelcomeEmail = (displayName: string | null): DigestEmail => {
     "",
     "Welcome to BGH Scout! Here's how to get the most out of it:",
     "",
-    `- Join the BGH Scout LinkedIn Group for news and feature updates: ${BGH_LINKEDIN_GROUP_URL}`,
+    `- Follow BGH Scout on LinkedIn (${BGH_LINKEDIN_URL}), Instagram (${BGH_INSTAGRAM_URL}), and Facebook (${BGH_FACEBOOK_URL}) for news and feature updates.`,
     `- Add a job title to your account to get a weekly email when new jobs match it: ${accountUrl}`,
     "- Save a search and turn on daily or weekly email alerts so new matching jobs land in your inbox.",
     "- Save individual jobs you're interested in and get a daily alert when similar new postings appear.",

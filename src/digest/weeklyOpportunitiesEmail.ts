@@ -10,7 +10,10 @@ import { DigestEmail } from "./savedSearchDigest";
 dayjs.extend(advancedFormat);
 
 const BGH_SCOUT_URL = "https://bghscout.com";
-const BGH_LINKEDIN_GROUP_URL = "https://www.linkedin.com/groups/40962102/";
+const BGH_LINKEDIN_URL = "https://www.linkedin.com/company/bgh-scout";
+const BGH_INSTAGRAM_URL = "https://www.instagram.com/bgh_scout";
+const BGH_FACEBOOK_URL =
+  "https://www.facebook.com/people/BGH-Scout/615799168717987";
 
 const getFirstName = (displayName: string | null): string | null =>
   displayName?.trim().split(/\s+/)[0] || null;
@@ -31,7 +34,7 @@ export const buildWeeklyOpportunitiesEmail = (
     <p>Whether you're actively looking for your next opportunity or simply keeping an eye on what's available, BGH Scout makes it easy to search and discover opportunities that match what you're looking for.</p>
     <p>Start searching today:<br>
     <a href="${BGH_SCOUT_URL}">Visit BGH Scout</a></p>
-    <p>Want to learn more about everything BGH Scout offers? Join the <a href="${BGH_LINKEDIN_GROUP_URL}">BGH LinkedIn Group</a> to stay up to date on all our features.</p>
+    <p>Want to learn more about everything BGH Scout offers? Follow us on <a href="${BGH_LINKEDIN_URL}">LinkedIn</a>, <a href="${BGH_INSTAGRAM_URL}">Instagram</a>, and <a href="${BGH_FACEBOOK_URL}">Facebook</a> to stay up to date on all our features.</p>
     <p>Thanks,</p>
     <p>BGH Scout Team</p>
   `.trim();
@@ -46,7 +49,7 @@ export const buildWeeklyOpportunitiesEmail = (
     "🔎 Start searching today:",
     `Visit BGH Scout: ${BGH_SCOUT_URL}`,
     "",
-    `Want to learn more about everything BGH Scout offers? Join the BGH LinkedIn Group to stay up to date on all our features: ${BGH_LINKEDIN_GROUP_URL}`,
+    `Want to learn more about everything BGH Scout offers? Follow us on LinkedIn (${BGH_LINKEDIN_URL}), Instagram (${BGH_INSTAGRAM_URL}), and Facebook (${BGH_FACEBOOK_URL}) to stay up to date on all our features.`,
     "",
     "Thanks,",
     "BGH Scout Team",

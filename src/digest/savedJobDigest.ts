@@ -16,7 +16,10 @@ import { DigestEmail, JobPreview } from "./savedSearchDigest";
 // How many matching jobs to preview per saved job in the digest.
 const DIGEST_PREVIEW_LIMIT = 5;
 
-const BGH_LINKEDIN_GROUP_URL = "https://www.linkedin.com/groups/40962102/";
+const BGH_LINKEDIN_URL = "https://www.linkedin.com/company/bgh-scout";
+const BGH_INSTAGRAM_URL = "https://www.instagram.com/bgh_scout";
+const BGH_FACEBOOK_URL =
+  "https://www.facebook.com/people/BGH-Scout/615799168717987";
 
 const toJobsQueryInput = (
   roleName: string,
@@ -91,7 +94,7 @@ export const buildSavedJobDigestEmail = (
         )
         .join("\n      ")}
     </ul>
-    <p>Want to learn more about everything BGH Scout offers? Join the <a href="${BGH_LINKEDIN_GROUP_URL}">BGH LinkedIn Group</a> to stay up to date on all our features.</p>
+    <p>Want to learn more about everything BGH Scout offers? Follow us on <a href="${BGH_LINKEDIN_URL}">LinkedIn</a>, <a href="${BGH_INSTAGRAM_URL}">Instagram</a>, and <a href="${BGH_FACEBOOK_URL}">Facebook</a> to stay up to date on all our features.</p>
     <p>Thanks,</p>
     <p>BGH Scout Team</p>
   `.trim();
@@ -109,7 +112,7 @@ export const buildSavedJobDigestEmail = (
       ...jobPreviewText(r.topJobs),
     ]),
     "",
-    `Want to learn more about everything BGH Scout offers? Join the BGH LinkedIn Group to stay up to date on all our features: ${BGH_LINKEDIN_GROUP_URL}`,
+    `Want to learn more about everything BGH Scout offers? Follow us on LinkedIn (${BGH_LINKEDIN_URL}), Instagram (${BGH_INSTAGRAM_URL}), and Facebook (${BGH_FACEBOOK_URL}) to stay up to date on all our features.`,
     "",
     "Thanks,",
     "BGH Scout Team",
